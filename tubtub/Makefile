@@ -6,7 +6,7 @@ run:
 	go run ./cmd/server
 
 tunnel:
-	cloudflared tunnel run gdd
+	cloudflared tunnel run pi
 
 dev:
 	$(MAKE) -j2 run tunnel
