@@ -3,10 +3,20 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"tubtub/internal/chat"
 	"tubtub/internal/game"
 	"tubtub/internal/webutil"
 )
+
+func getStaticDir() string {
+	// Use relative path if running in dev
+	if _, err := os.Stat("../../web/hub"); err == nil {
+		return "../../web/hub"
+	}
+	// Fallback for Pi (prod)
+	return "tubtub/web/hub"
+}
 
 func main() {
 
@@ -21,7 +31,7 @@ func main() {
 
 	// --- Static sites
 	// Root site (homepage) → web/hub/*
-	mux.Handle("/", http.FileServer(http.Dir("web/hub")))
+	mux.Handle("/", http.FileServer(http.Dir(getStaticDir())))
 
 	// Sub-sites. IMPORTANT: StripPrefix uses "/path/" (with trailing slash)
 	mux.Handle("/chat/", http.StripPrefix("/chat/", http.FileServer(http.Dir("web/chat"))))
