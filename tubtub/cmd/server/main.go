@@ -105,6 +105,14 @@ func main() {
 		guesser.SessionHandler(idx, templates, sessionStore),
 	)
 
+	// New reveal/lottery endpoints
+	mux.Handle("/api/session/categories",
+		guesser.GetCategoriesHandler(idx, sessionStore),
+	)
+	mux.Handle("/api/session/reveal",
+		guesser.RevealHandler(idx, sessionStore),
+	)
+
 	// Health
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("ok"))

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"tubtub/internal/guesser"
@@ -44,39 +43,53 @@ func RunDatasetBuilder(inputPath, outputPath, imageDir string) error {
 			continue
 		}
 
-		// Merge fields
-		g.RawgDescription = detail.DescriptionRaw
-		g.RawgPlaytime = detail.Playtime
-		g.RawgMetacritic = detail.Metacritic
+		// Merge fields into the *normalized* Game struct
 
-		g.RawgDevelopers = collectNames(detail.Developers)
-		g.RawgPublishers = collectNames(detail.Publishers)
-		g.RawgGenres = collectNames(detail.Genres)
-		g.RawgTags = collectNames(detail.Tags)
+		// Release info
+		if detail.Released != "" {
+			g.Released = detail.Released
+			if g.Year == 0 {
+				g.Year = parseYear(detail.Released)
+			}
+		}
+
+		// Ratings
+		g.Playtime = detail.Playtime
+		g.Metacritic = detail.Metacritic
+
+		// Credit lists
+		g.Developers = collectNames(detail.Developers)
+		g.Publishers = collectNames(detail.Publishers)
+		g.Genres = collectNames(detail.Genres)
+		g.Tags = collectNames(detail.Tags)
 
 		if detail.EsrbRating != nil {
-			g.RawgESRB = detail.EsrbRating.Name
+			g.RawgESRB = strings.TrimSpace(detail.EsrbRating.Name)
 		}
 
 		// Parent platforms as simple strings
+		g.ParentPlatforms = g.ParentPlatforms[:0]
 		for _, pp := range detail.ParentPlatforms {
-			g.RawgPlatforms = append(g.RawgPlatforms, pp.Platform.Name)
+			name := strings.TrimSpace(pp.Platform.Name)
+			if name != "" {
+				g.ParentPlatforms = append(g.ParentPlatforms, name)
+			}
 		}
 
+		// Stores
+		g.Stores = g.Stores[:0]
 		for _, st := range detail.Stores {
-			g.RawgStores = append(g.RawgStores, st.Store.Name)
-		}
-
-		// Release year
-		if detail.Released != "" {
-			g.RawgYear = parseYear(detail.Released)
+			name := strings.TrimSpace(st.Store.Name)
+			if name != "" {
+				g.Stores = append(g.Stores, name)
+			}
 		}
 
 		// IMAGE CACHING
 		rawURL := sr.Results[0].BackgroundImage
 		if rawURL != "" {
 			imgURL, err := cacheImage(g.ID, rawURL, imageDir)
-			if err == nil {
+			if err == nil && imgURL != "" {
 				g.ImageURL = imgURL
 			}
 		}
@@ -97,7 +110,7 @@ func RunDatasetBuilder(inputPath, outputPath, imageDir string) error {
 }
 
 func collectNames[T any](list []struct{ Name string }) []string {
-	out := []string{}
+	var out []string
 	for _, x := range list {
 		name := strings.TrimSpace(x.Name)
 		if name != "" {

@@ -60,8 +60,10 @@ func (s *SessionStore) createSession() (*Session, error) {
 		CreatedAt:     time.Now(),
 		MysteryGameID: mysteryGame.ID,
 		CandidateIDs:  candidates,
-		Lives:         3,
-		RevealedCount: 0,
+
+		// New mechanics
+		Lives:          3,
+		RevealedCount:  0,
 		UsedCategories: make(map[string]bool),
 	}
 

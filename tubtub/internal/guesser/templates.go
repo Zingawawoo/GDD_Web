@@ -1,8 +1,6 @@
 package guesser
 
-import (
-	"strings"
-)
+import "strings"
 
 // DefaultTemplates returns all supported backend question templates.
 // These IDs line up with what the frontend sends (platform, genre, etc.).
