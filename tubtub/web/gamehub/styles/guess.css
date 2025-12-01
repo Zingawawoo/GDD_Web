@@ -447,6 +447,13 @@ body.guesser-body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Responsive polish */
+@media (max-width: 1024px) {
+  .guesser-main { padding: 32px 20px 96px; }
+  .hero { padding: 22px; gap: 24px; }
+  .hints-panel, .guess-panel { padding: 20px; }
+}
+
 @media (max-width: 800px) {
   .guesser-main {
     padding: 24px 16px 80px;
@@ -460,6 +467,43 @@ body.guesser-body {
   .guess-input-row {
     flex-direction: column;
   }
+}
+
+@media (max-width: 720px) {
+  .hero {
+    grid-template-columns: 1fr;
+    padding: 20px;
+    gap: 18px;
+  }
+  .hero h1 { font-size: clamp(26px, 6vw, 32px); }
+  .lede { font-size: 15px; line-height: 1.6; }
+  .holo-stage { height: 220px; }
+  .shuffle-window { width: 100%; max-width: 280px; }
+  .controls { flex-direction: column; align-items: stretch; gap: 10px; }
+  .counter { width: 100%; text-align: center; }
+  .hints-panel, .guess-panel { padding: 18px; }
+  .panel-head h2 { font-size: 22px; }
+  .guess-card { padding: 16px; }
+  .guess-meta { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .guess-input-row { flex-direction: column; }
+  .guess-input-row button { width: 100%; }
+  .summary-overlay { padding: 14px; }
+  .summary-panel { width: min(900px, 100%); border-radius: 16px; }
+  .summary-content { padding: 22px; }
+  .summary-body { grid-template-columns: 1fr; }
+  .summary-hints { grid-template-columns: 1fr; }
+  .summary-hints .pill { width: 100%; justify-content: space-between; }
+}
+
+@media (max-width: 540px) {
+  .guesser-main { padding: 24px 14px 90px; }
+  .hero { padding: 16px; }
+  .holo-stage { height: 200px; }
+  .hints-panel, .guess-panel { padding: 16px; }
+  .hint-grid { grid-template-columns: 1fr; }
+  .shuffle-window { max-width: 100%; }
+  .summary-content { padding: 18px; }
+  .summary-panel { border-radius: 14px; }
 }
 
 .reveal-list li {

@@ -67,8 +67,8 @@
     /* Top controls */
     .toolbar {
       position: fixed;
-      top: 80px;
-      right: 24px;
+      top: calc(var(--nav-spacer, 78px) + 6px);
+      right: min(24px, 4vw);
       display: flex;
       gap: 10px;
       padding: 10px;
@@ -122,9 +122,9 @@
     /* Side panel */
     .side-panel {
       position: fixed;
-      top: 72px; left: 0;
+      top: var(--nav-spacer, 78px); left: 0;
       width: min(380px, 90vw);
-      height: calc(100vh - 72px);
+      height: calc(100vh - var(--nav-spacer, 78px) - env(safe-area-inset-bottom, 0px));
       background: rgba(5, 9, 21, 0.85);
       border-right: 1px solid var(--border);
       box-shadow: 20px 0 60px rgba(0,0,0,0.45);
@@ -192,6 +192,47 @@
       cursor: pointer;
     }
 
+    /* Responsive polish */
+    @media (max-width: 960px) {
+      .toolbar {
+        left: 12px;
+        right: 12px;
+        top: auto;
+        bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+        justify-content: space-between;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 8px;
+      }
+      .mode-btn {
+        flex: 1;
+        min-width: 150px;
+      }
+      .side-panel {
+        width: min(420px, 96vw);
+      }
+    }
+
+    @media (max-width: 680px) {
+      .toolbar {
+        padding: 10px 8px;
+      }
+      .mode-btn {
+        min-width: 120px;
+        padding: 10px 12px;
+      }
+      .panel-head {
+        align-items: flex-start;
+      }
+      .close-btn {
+        top: 10px;
+        right: 10px;
+      }
+      .section {
+        padding: 14px 16px;
+      }
+    }
+
     @keyframes nebulaShift {
       from { transform: translateY(-12px); }
       to { transform: translateY(12px); }
@@ -229,7 +270,7 @@
     <nav class="nav-links">
       <a href="index.html">Home</a>
       <a href="guess.html">Guess</a>
-      <a href="dream.html">Dream</a>
+      <a href="build.html">Build</a>
       <a class="active" href="explore.html">Explore</a>
     </nav>
   </header>

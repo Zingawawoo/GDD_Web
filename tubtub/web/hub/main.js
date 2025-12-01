@@ -88,6 +88,25 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.card.soon .cta').forEach(a =>
         a.addEventListener('click', e => e.preventDefault())
     );
+
+    // Make entire cards clickable using their primary CTA link
+    document.querySelectorAll('.card').forEach(card => {
+        const link = card.querySelector('.cta[href]');
+        if (!link) return;
+        card.setAttribute('role', 'link');
+        card.tabIndex = card.tabIndex || 0;
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', (e) => {
+            if (e.target.closest('a')) return; // allow normal anchor clicks
+            window.location.href = link.href;
+        });
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                link.click();
+            }
+        });
+    });
 });
 
 // ---------- Optional stats badge ----------
@@ -166,4 +185,3 @@ window.addEventListener('scroll', () => {
 
     io.observe(footer);
 })();
-

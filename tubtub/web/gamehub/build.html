@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="../../favicon.png" />
   <link rel="stylesheet" href="./styles/base.css" />
   <link rel="stylesheet" href="./styles/nav.css" />
-  <link rel="stylesheet" href="./styles/dream.css?v=2" />
+  <link rel="stylesheet" href="./styles/build.css?v=3" />
 </head>
 <body class="builder-body fade-prep">
 
@@ -15,34 +15,44 @@
   <nav class="nav-links">
     <a href="index.html">Home</a>
     <a href="guess.html">Guess</a>
-    <a class="active" href="dream.html">Dream</a>
+    <a class="active" href="build.html">Build</a>
     <a href="explore.html">Explore</a>
   </nav>
 </header>
 <div class="nav-spacer"></div>
 
-<main class="builder-main">
+<main class="builder-main gated" id="builder-main">
   <div class="bg-gradient"></div>
   <div class="bg-noise"></div>
 
+  <section id="start-gate" class="start-gate">
+    <div class="start-panel">
+      <div class="start-brand fade-slot" id="start-brand">
+        <div class="logo-mark">★</div>
+        <p class="eyebrow">Game Builder</p>
+        <h2 class="start-title">Game Builder</h2>
+        <button id="start-btn" class="btn neon wide start-large">Start</button>
+      </div>
+
+      <div class="start-instructions hidden" id="start-instructions">
+        <div class="instruction-step" id="instruction-text"></div>
+        <button id="next-instruction" class="btn outline wide">Next</button>
+      </div>
+
+      <div class="start-counts hidden" id="start-counts">
+        <p class="eyebrow">Pick your categories</p>
+        <p class="lede">Choose exactly which categories you want (grouped by row).</p>
+        <div class="category-picker" id="category-picker"></div>
+        <button id="start-build" class="btn neon wide">Begin build</button>
+      </div>
+    </div>
+  </section>
+
   <section class="hero">
-    <div class="hero-copy">
-      <p class="eyebrow">Cosmic Game Builder</p>
-      <h1>Assemble a wild new game</h1>
-      <p class="lede">Select a category, roll an unknown game signal, and lock it into place. Fill all twenty slots to see how coherent (or chaotic) your creation is.</p>
-      <div class="control-row">
-        <button id="roll-btn" class="btn neon">Roll Game</button>
-        <button id="assign-btn" class="btn outline" disabled>Assign to Selected Category</button>
-      </div>
-      <div class="status-line" id="status-text">Select a category then roll to assign.</div>
-      <div class="progress-shell">
-        <div class="progress-meta">
-          <span id="filled-count">0</span>/20 locked
-        </div>
-        <div class="progress-bar">
-          <div id="progress-fill"></div>
-        </div>
-      </div>
+    <div class="hero-controls">
+      <button id="roll-btn" class="btn neon primary">Generate a game</button>
+      <button id="assign-btn" class="btn outline primary" disabled>Lock in choice</button>
+      <div class="status-line" id="status-text">Pick a category, generate, then lock it in.</div>
     </div>
 
     <div class="holo-stack">
@@ -53,8 +63,8 @@
         <div class="scanlines"></div>
         <div class="holo-content">
           <div id="holo-genre" class="pill">Awaiting genre</div>
-          <div id="holo-name" class="holo-name">Roll a game</div>
-          <div id="holo-meta" class="holo-meta">Vibe incoming</div>
+          <div id="holo-name" class="holo-name">Generate a game</div>
+          <div id="holo-meta" class="holo-meta hidden"></div>
         </div>
       </div>
     </div>
@@ -63,13 +73,8 @@
   <section class="category-section">
     <div class="section-head">
       <div>
-        <p class="eyebrow">Category Matrix</p>
-        <h2>Lock in twenty signals</h2>
-      </div>
-      <div class="legend">
-        <span class="legend-dot free"></span> Available
-        <span class="legend-dot active"></span> Selected
-        <span class="legend-dot locked"></span> Locked
+        <p class="eyebrow">Categories</p>
+        <h2>Categories</h2>
       </div>
     </div>
     <div id="category-rows" class="category-rows"></div>
@@ -110,6 +115,6 @@
 
 <script src="./js/animations.js"></script>
 <script src="./js/nav.js"></script>
-<script src="./js/dream.js?v=2"></script>
+<script src="./js/build.js?v=3"></script>
 </body>
 </html>
