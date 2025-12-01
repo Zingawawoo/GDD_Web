@@ -3,105 +3,86 @@ package guesser
 import (
 	crypto_rand "crypto/rand"
 	"encoding/hex"
+	"errors"
+	"log"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 )
 
-// SessionStore manages active sessions in memory.
+var (
+	ErrSessionNotFound = errors.New("session not found")
+)
+
 type SessionStore struct {
 	mu       sync.RWMutex
 	sessions map[string]*Session
 	idx      *Index
 }
 
-// NewSessionStore creates a store bound to a dataset index.
 func NewSessionStore(idx *Index) *SessionStore {
-	// Seed math/rand once – used only for picking a random game.
 	rand.Seed(time.Now().UnixNano())
-
 	return &SessionStore{
 		sessions: make(map[string]*Session),
 		idx:      idx,
 	}
 }
 
-// newSessionID generates a random hex session ID.
-func newSessionID() (string, error) {
-	var buf [16]byte
-	if _, err := crypto_rand.Read(buf[:]); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(buf[:]), nil
+func newSessionID() string {
+	var b [16]byte
+	_, _ = crypto_rand.Read(b[:])
+	return hex.EncodeToString(b[:])
 }
 
-// createSession picks a random mystery game and initial candidate set.
-func (s *SessionStore) createSession() (*Session, error) {
-	if s.idx.DatasetSize() == 0 {
-		return nil, ErrEmptyDataset
+func (s *SessionStore) CreateSession() (*Session, error) {
+	if s.idx.Size() == 0 {
+		return nil, errors.New("dataset empty")
 	}
 
-	id, err := newSessionID()
-	if err != nil {
-		return nil, err
-	}
+	game := s.idx.Games[rand.Intn(s.idx.Size())]
 
-	// Random mystery game.
-	mysteryIdx := rand.Intn(len(s.idx.Games))
-	mysteryGame := s.idx.Games[mysteryIdx]
-
-	candidates := make(map[int]bool, len(s.idx.Games))
-	for _, g := range s.idx.Games {
-		candidates[g.ID] = true
-	}
-
-	session := &Session{
-		ID:            id,
-		CreatedAt:     time.Now(),
-		MysteryGameID: mysteryGame.ID,
-		CandidateIDs:  candidates,
-
-		// New mechanics
+	sess := &Session{
+		ID:             newSessionID(),
+		CreatedAt:      time.Now(),
+		MysteryGameID:  game.ID,
 		Lives:          3,
-		RevealedCount:  0,
+		MaxReveals:     10,
 		UsedCategories: make(map[string]bool),
+		BlurPath:       "",
 	}
 
 	s.mu.Lock()
-	s.sessions[id] = session
+	s.sessions[sess.ID] = sess
 	s.mu.Unlock()
 
-	return session, nil
+	log.Printf("session created id=%s game=%d (total=%d)\n", sess.ID, game.ID, len(s.sessions))
+	return sess, nil
 }
 
-// GetSession looks up a session by ID.
-func (s *SessionStore) GetSession(id string) (*Session, bool) {
+func (s *SessionStore) GetSession(id string) (*Session, error) {
+	id = strings.TrimSpace(id)
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
 	sess, ok := s.sessions[id]
-	return sess, ok
+	if !ok {
+		log.Printf("session lookup miss id=%q (total=%d)\n", id, len(s.sessions))
+		return nil, ErrSessionNotFound
+	}
+	return sess, nil
 }
 
-// WithSession allows safe mutation of a session.
-func (s *SessionStore) WithSession(id string, fn func(sess *Session) error) error {
+func (s *SessionStore) WithSession(id string, fn func(*Session) error) error {
+	id = strings.TrimSpace(id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	sess, ok := s.sessions[id]
 	if !ok {
+		log.Printf("session lock miss id=%q (total=%d)\n", id, len(s.sessions))
 		return ErrSessionNotFound
 	}
+
 	return fn(sess)
 }
-
-var (
-	// ErrEmptyDataset is returned if there are no games.
-	ErrEmptyDataset = Err("dataset is empty")
-	// ErrSessionNotFound when a session ID is missing.
-	ErrSessionNotFound = Err("session not found")
-)
-
-// Err is a simple string error type.
-type Err string
-
-func (e Err) Error() string { return string(e) }

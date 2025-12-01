@@ -12,12 +12,7 @@ import (
 )
 
 func projectRoot() string {
-	candidates := []string{
-		".",
-		"..",
-		"../..",
-	}
-
+	candidates := []string{".", "..", "../.."}
 	for _, c := range candidates {
 		try := filepath.Join(c, "web", "hub")
 		if _, err := os.Stat(try); err == nil {
@@ -27,102 +22,105 @@ func projectRoot() string {
 	return "."
 }
 
-func getStaticDir(root string) string {
-	return filepath.Join(root, "web", "hub")
-}
-
-func getGuesserStaticDir(root string) string {
-	return filepath.Join(root, "web", "guesser")
-}
-
-func getChatStaticDir(root string) string {
-	return filepath.Join(root, "web", "chat")
-}
-
-func getRoadmapStaticDir(root string) string {
-	return filepath.Join(root, "web", "roadmap")
-}
-
-func getGuesserDatasetPath(root string) string {
-	return filepath.Join(root, "web", "guesser", "games.json")
-}
-
 func main() {
 	root := projectRoot()
 	log.Printf("Using project root: %s\n", root)
 
-	datasetPath := getGuesserDatasetPath(root)
-	log.Printf("Loading games dataset from: %s", datasetPath)
-
+	datasetPath := filepath.Join(root, "web", "guesser", "games.json")
 	idx, err := guesser.LoadDataset(datasetPath)
 	if err != nil {
-		log.Fatalf("failed to load dataset: %v", err)
+		log.Fatalf("cannot load dataset: %v", err)
 	}
 
-	templates := guesser.DefaultTemplates()
 	sessionStore := guesser.NewSessionStore(idx)
-
 	chatHub := chat.NewHub()
 
 	mux := http.NewServeMux()
 
-	// WebSocket endpoints
-	mux.HandleFunc("/ws/chat", chatHub.HandleWS)
-
-	// Static sites
+	// -----------------------------
+	// STATIC SITES
+	// -----------------------------
 	mux.Handle("/",
-		http.FileServer(http.Dir(getStaticDir(root))),
+		http.FileServer(http.Dir(filepath.Join(root, "web", "hub"))),
 	)
 
 	mux.Handle("/chat/",
 		http.StripPrefix("/chat/",
-			http.FileServer(http.Dir(getChatStaticDir(root))),
+			http.FileServer(http.Dir(filepath.Join(root, "web", "chat"))),
 		),
 	)
 
-	mux.Handle("/guesser/",
-		http.StripPrefix("/guesser/",
-			http.FileServer(http.Dir(getGuesserStaticDir(root))),
+	mux.Handle("/gamehub/",
+		http.StripPrefix("/gamehub/",
+			http.FileServer(http.Dir(filepath.Join(root, "web", "gamehub"))),
+		),
+	)
+
+	// Game images (used by guess game + blur cache)
+	mux.Handle("/images/",
+		http.StripPrefix("/images/",
+			http.FileServer(http.Dir(filepath.Join(root, "web", "guesser", "images"))),
 		),
 	)
 
 	mux.Handle("/roadmap/",
 		http.StripPrefix("/roadmap/",
-			http.FileServer(http.Dir(getRoadmapStaticDir(root))),
+			http.FileServer(http.Dir(filepath.Join(root, "web", "roadmap"))),
 		),
 	)
 
-	// Serve dataset at /games.json so the frontend can fetch it.
-	mux.Handle("/games.json",
-		http.FileServer(http.Dir(getGuesserStaticDir(root))),
-	)
+	// Make sure this folder exists for blurred images
+	os.MkdirAll(filepath.Join(root, "web", "guesser", "blur_cache"), 0755)
 
-	// Guesser API
-	mux.Handle("/api/session/start",
-		guesser.StartSessionHandler(idx, templates, sessionStore),
-	)
-	mux.Handle("/api/session/",
-		guesser.SessionHandler(idx, templates, sessionStore),
-	)
+	// -----------------------------
+	// WEBSOCKETS
+	// -----------------------------
+	mux.HandleFunc("/ws/chat", chatHub.HandleWS)
 
-	// New reveal/lottery endpoints
-	mux.Handle("/api/session/categories",
-		guesser.GetCategoriesHandler(idx, sessionStore),
-	)
-	mux.Handle("/api/session/reveal",
-		guesser.RevealHandler(idx, sessionStore),
-	)
+	// -----------------------------
+	// API: Guessing game
+	// -----------------------------
+	mux.Handle("/api/guess/start", guesser.GuessStartHandler(idx, sessionStore))
+	mux.Handle("/api/guess/categories", guesser.GuessCategoriesHandler(idx, sessionStore))
+	mux.Handle("/api/guess/reveal", guesser.GuessRevealHandler(idx, sessionStore))
+	mux.Handle("/api/guess/submit/", guesser.GuessSubmitHandler(idx, sessionStore))
+	mux.Handle("/api/guess/suggest", guesser.GuessSuggestHandler(idx))
+	mux.Handle("/api/guess/ticker", guesser.GuessTickerHandler(idx))
 
-	// Health
+	// Serve blurred image that was generated
+	mux.Handle("/api/blur/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// images stored in: web/guesser/blur_cache/<session>.jpg
+		localPath := filepath.Join(root, "web", "guesser", "blur_cache", filepath.Base(r.URL.Path))
+		http.ServeFile(w, r, localPath)
+	}))
+
+	// -----------------------------
+	// API: Dream Game Builder
+	// -----------------------------
+	mux.Handle("/api/dream/roll", guesser.DreamRollHandler(idx))
+
+	// -----------------------------
+	// API: Explore/Timeline
+	// -----------------------------
+	mux.Handle("/api/explore/by-year", guesser.ExploreByYearHandler(idx))
+	mux.Handle("/api/explore/by-platform", guesser.ExploreByPlatformHandler(idx))
+	mux.Handle("/api/explore/by-genre", guesser.ExploreByGenreHandler(idx))
+
+	// -----------------------------
+	// Health check
+	// -----------------------------
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("ok"))
+		w.Write([]byte("ok"))
 	})
 
+	// -----------------------------
+	// FINAL SERVER WRAP
+	// -----------------------------
 	srv := &http.Server{
 		Addr:    ":9000",
 		Handler: webutil.WithSecurityHeaders(mux),
 	}
 
-	log.Println("Tubtub server listening on :9000")
+	log.Println("Unified Tubtub GameHub Server running on :9000")
 	log.Fatal(srv.ListenAndServe())
 }

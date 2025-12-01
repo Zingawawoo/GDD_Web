@@ -1,0 +1,20 @@
+.results-grid {
+  margin-top: 30px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.results-grid .card {
+  background: white;
+  padding: 14px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  animation: fadein 0.5s ease;
+}
+
+.results-grid .card img {
+  width: 100%;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
