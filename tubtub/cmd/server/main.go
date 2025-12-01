@@ -12,15 +12,29 @@ import (
 )
 
 func projectRoot() string {
-	candidates := []string{".", "..", "../.."}
-	for _, c := range candidates {
-		try := filepath.Join(c, "web", "hub")
-		if _, err := os.Stat(try); err == nil {
-			return c
-		}
-	}
-	return "."
+    candidates := []string{".", "..", "../.."}
+    dirsToCheck := []string{
+        filepath.Join("web", "hub"),
+        filepath.Join("web", "gamehub"),
+        filepath.Join("web", "guesser"),
+    }
+
+    for _, c := range candidates {
+        ok := true
+        for _, d := range dirsToCheck {
+            try := filepath.Join(c, d)
+            if _, err := os.Stat(try); err != nil {
+                ok = false
+                break
+            }
+        }
+        if ok {
+            return c
+        }
+    }
+    return "."
 }
+
 
 func main() {
 	root := projectRoot()
