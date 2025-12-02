@@ -16,23 +16,44 @@ const summaryGameName = document.getElementById("summary-game-name");
 const summaryHints = document.getElementById("summary-hints");
 const nextGameBtn = document.getElementById("next-game");
 
-const MAX_HINTS = 10;
-const MAX_GUESSES = 5;
-let suggestionsReq = 0;
+const startGate = document.getElementById("start-gate");
+const startBrand = document.getElementById("start-brand");
+const startBtn = document.getElementById("start-btn");
+const startInstructions = document.getElementById("start-instructions");
+const instructionText = document.getElementById("instruction-text");
+const nextInstruction = document.getElementById("next-instruction");
+const startDifficulties = document.getElementById("start-difficulties");
+const difficultyButtons = document.querySelectorAll(".difficulty-card");
+const guesserMain = document.getElementById("guesser-main");
 
+const instructionSteps = [
+  "This is a game-guessing simulation. We’ll pull a random game for you.",
+  "Reveal hints one by one. Fewer hints = bigger bragging rights.",
+  "Pick a difficulty to set how many hints and guesses you get."
+];
+
+const DIFFICULTIES = {
+  easy: { hints: 10, guesses: 5 },
+  medium: { hints: 8, guesses: 3 },
+  hard: { hints: 5, guesses: 1 },
+};
+
+let suggestionsReq = 0;
 let currentGame = null;
 let availableHints = [];
 let revealedHints = [];
-let guessRemaining = MAX_GUESSES;
+let guessRemaining = 0;
 let shuffling = false;
-let hintCap = MAX_HINTS;
+let hintCap = 0;
+let currentDifficulty = DIFFICULTIES.easy;
+let instructionIndex = 0;
 
 function resetState() {
   currentGame = null;
   availableHints = [];
   revealedHints = [];
-  guessRemaining = MAX_GUESSES;
-  hintCap = MAX_HINTS;
+  guessRemaining = currentDifficulty.guesses;
+  hintCap = currentDifficulty.hints;
   hintGrid.innerHTML = "";
   guessResult.textContent = "";
   guessResult.className = "guess-result";
@@ -130,7 +151,7 @@ function buildHintPool(game) {
       });
     }
   });
-  return pool.slice(0, MAX_HINTS);
+  return pool.slice(0, currentDifficulty.hints);
 }
 
 function renderHints() {
@@ -173,7 +194,7 @@ async function handleReveal() {
   revealBtn.disabled = true;
   shuffleTrack.classList.add("flicker");
   shuffleLabel.textContent = "Shuffling hints...";
-  statusText.textContent = "Hologram cycling through categories...";
+  statusText.textContent = "Hologram cycling through clues...";
 
   const spinDuration = 1800;
   const start = Date.now();
@@ -194,13 +215,13 @@ async function handleReveal() {
   revealedHints.push(nextHint);
   shuffleTrack.textContent = nextHint.label;
   shuffleTrack.classList.remove("flicker");
-  shuffleLabel.textContent = "Hint revealed";
-  statusText.textContent = `Hint unlocked: ${nextHint.label}`;
+  shuffleLabel.textContent = "Clue revealed";
+  statusText.textContent = `Clue unlocked: ${nextHint.label}`;
   renderHints();
   updateCounters();
 
   shuffling = false;
-  if (revealedHints.length < MAX_HINTS && availableHints.length) {
+  if (revealedHints.length < currentDifficulty.hints && availableHints.length) {
     revealBtn.disabled = false;
   }
 }
@@ -256,7 +277,8 @@ async function loadGame() {
   const game = await fetchRandomGame();
   currentGame = game;
   availableHints = buildHintPool(game);
-  hintCap = Math.min(MAX_HINTS, availableHints.length || MAX_HINTS);
+  hintCap = Math.min(currentDifficulty.hints, availableHints.length || currentDifficulty.hints);
+  guessRemaining = currentDifficulty.guesses;
   revealedHints = [];
 
   hintMaxEl.textContent = hintCap;
@@ -309,11 +331,47 @@ function bindEvents() {
     summaryOverlay.classList.add("hidden");
     loadGame();
   });
+
+  // Start gate
+  startBtn?.addEventListener("click", () => {
+    startBtn.disabled = true;
+    startBrand?.classList.add("hidden");
+    startInstructions?.classList.remove("hidden");
+    instructionIndex = 0;
+    instructionText.textContent = instructionSteps[instructionIndex];
+    instructionText.classList.add("fade-slot");
+  });
+
+  nextInstruction?.addEventListener("click", () => {
+    instructionIndex += 1;
+    if (instructionIndex < instructionSteps.length) {
+      instructionText.textContent = instructionSteps[instructionIndex];
+      instructionText.classList.remove("fade-slot");
+      void instructionText.offsetWidth;
+      instructionText.classList.add("fade-slot");
+    } else {
+      startInstructions?.classList.add("hidden");
+      startDifficulties?.classList.remove("hidden");
+    }
+  });
+
+  difficultyButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.difficulty;
+      const picked = DIFFICULTIES[key] || DIFFICULTIES.easy;
+      currentDifficulty = picked;
+      startGate?.classList.add("hidden");
+      guesserMain?.classList.remove("gated");
+      loadGame();
+    });
+  });
 }
 
 function init() {
   bindEvents();
-  loadGame();
+  // gate the experience until difficulty is chosen
+  guesserMain?.classList.add("gated");
+  startGate?.classList.remove("hidden");
 }
 
 init();

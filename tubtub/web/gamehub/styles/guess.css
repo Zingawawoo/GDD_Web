@@ -24,6 +24,113 @@ body.guesser-body {
   isolation: isolate;
 }
 
+/* Start gate overlay */
+.start-gate {
+  position: fixed;
+  inset: 0;
+  padding: calc(var(--nav-spacer, 78px) + 12px) 14px 24px;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 35% 20%, rgba(127, 90, 240, 0.22), transparent 45%),
+    radial-gradient(circle at 70% 10%, rgba(44, 182, 125, 0.24), transparent 45%),
+    rgba(4, 7, 18, 0.9);
+  backdrop-filter: blur(10px);
+  z-index: 60;
+}
+.start-gate.hidden { display: none; }
+
+.start-panel {
+  width: min(880px, 100%);
+  background: rgba(9, 13, 24, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 32px 28px 34px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+  color: var(--text);
+}
+.start-panel h2 { margin: 4px 0 10px; }
+.start-panel .lede { margin: 0 0 16px; color: var(--muted); max-width: 640px; }
+
+.start-brand {
+  text-align: center;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+.start-title { margin: 0 0 8px; font-size: 28px; }
+.logo-mark {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle, rgba(127, 90, 240, 0.35), rgba(44, 182, 125, 0.2));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-weight: 800;
+}
+.start-large { padding: 16px; font-size: 17px; width: 100%; }
+
+.start-instructions {
+  margin-top: 12px;
+  display: grid;
+  gap: 12px;
+}
+.start-instructions.hidden { display: none; }
+.instruction-step {
+  padding: 14px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  min-height: 56px;
+}
+
+.start-difficulties {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+.start-difficulties.hidden { display: none; }
+.difficulty-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+.difficulty-card {
+  padding: 14px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  display: grid;
+  gap: 6px;
+}
+.difficulty-card .title { font-weight: 800; }
+.difficulty-card .meta { color: var(--muted); font-size: 14px; }
+.difficulty-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(127, 90, 240, 0.5);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+
+.guesser-main.gated .hero,
+.guesser-main.gated .hints-panel,
+.guesser-main.gated .guess-panel {
+  filter: blur(2px);
+  opacity: 0.08;
+  pointer-events: none;
+  user-select: none;
+}
+
+.hidden { display: none !important; }
+.fade-slot { opacity: 0; animation: fadeSlot 0.6s ease forwards; }
+@keyframes fadeSlot { to { opacity: 1; transform: translateY(0); } from { opacity: 0; transform: translateY(8px); } }
+
 .bg-gradient {
   position: fixed;
   inset: 0;
