@@ -1,0 +1,31 @@
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: #000;
+  color: #fff;
+  font-family: "Space Grotesk", sans-serif;
+  overflow: hidden;
+}
+
+.hub-root {
+  min-height: 100vh;
+}
+
+.stickman-canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}

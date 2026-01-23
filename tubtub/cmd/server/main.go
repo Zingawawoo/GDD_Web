@@ -5,11 +5,14 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"mime"
 
 	"tubtub/internal/chat"
 	"tubtub/internal/guesser"
 	"tubtub/internal/webutil"
 )
+
+
 
 func projectRoot() string {
     candidates := []string{".", "..", "../.."}
@@ -37,6 +40,7 @@ func projectRoot() string {
 
 
 func main() {
+	mime.AddExtensionType(".wasm", "application/wasm")
 	root := projectRoot()
 	log.Printf("Using project root: %s\n", root)
 
@@ -67,13 +71,6 @@ func main() {
 	mux.Handle("/gamehub/",
 		http.StripPrefix("/gamehub/",
 			http.FileServer(http.Dir(filepath.Join(root, "web", "gamehub"))),
-		),
-	)
-
-	// Game images (used by guess game + blur cache)
-	mux.Handle("/images/",
-		http.StripPrefix("/images/",
-			http.FileServer(http.Dir(filepath.Join(root, "web", "guesser", "images"))),
 		),
 	)
 
