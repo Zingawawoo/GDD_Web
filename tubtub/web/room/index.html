@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>The Room</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="./room.css" />
+  <link rel="icon" type="image/png" href="../hub/assets/favicon.png" />
+  <script src="./room.js" defer></script>
+</head>
+<body>
+  <div class="room-controls" aria-label="Room controls">
+    <button class="room-control" type="button" data-action="restart">Restart</button>
+    <button class="room-control" type="button" data-action="levels" aria-expanded="false" aria-controls="level-menu">Level Selector</button>
+    <button class="room-control" type="button" data-action="quit">Quit</button>
+    <div class="level-menu" id="level-menu" aria-label="Level selector" hidden></div>
+  </div>
+  <main class="room" aria-label="The Room">
+    <div class="room-ending" data-room-ending hidden>
+      Thats all the room has to offer. for now.
+    </div>
+    <section class="room-panel room-top" aria-live="polite">
+      <div class="room-message" data-room-message>Welcome to the room</div>
+      <div class="survey" data-room-survey hidden>
+        <div class="survey-question" data-survey-question>
+          What has been the <span class="survey-highlight" data-highlight-word>highlight</span> of this game so far?
+        </div>
+        <label class="survey-label" for="survey-input">Your answer</label>
+        <input class="survey-input" id="survey-input" type="text" autocomplete="off" />
+        <button class="survey-submit" type="button">Submit</button>
+      </div>
+      <div class="boss-level" data-room-boss hidden>
+        <div class="boss-title">Beat the boss</div>
+        <div class="boss-popup" data-boss-popup hidden></div>
+        <div class="boss-bars">
+          <div class="boss-bar-slot" data-slot="player">
+            <div class="boss-bar-label">Player</div>
+            <div class="boss-bar" data-bar="player" draggable="true">
+              <div class="boss-bar-fill" data-bar-fill="player"></div>
+            </div>
+          </div>
+          <div class="boss-bar-slot" data-slot="boss">
+            <div class="boss-bar-label">Boss</div>
+            <div class="boss-bar" data-bar="boss" draggable="true">
+              <div class="boss-bar-fill" data-bar-fill="boss"></div>
+            </div>
+          </div>
+        </div>
+        <div class="boss-actions">
+          <button class="boss-action" type="button" data-boss-action="attack">Attack</button>
+          <button class="boss-action" type="button" data-boss-action="defend">Defend</button>
+        </div>
+        <div class="boss-retry" data-boss-retry hidden>
+          <div class="boss-retry-text">You lost.</div>
+          <button class="boss-action" type="button" data-boss-action="retry">Try again</button>
+        </div>
+      </div>
+    </section>
+    <section class="room-panel room-bottom" data-room-bottom>
+      <div class="room-message room-message--bottom">This is a series of puzzles.</div>
+    </section>
+  </main>
+</body>
+</html>

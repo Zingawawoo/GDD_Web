@@ -1,110 +1,6 @@
 const splash = document.querySelector(".fade-splash");
-const canvas = document.querySelector(".knight-canvas");
-const context = canvas ? canvas.getContext("2d") : null;
-
-const kingIdleSource = "./assets/King/Idle.png";
-const kingFrameWidth = 160;
-const kingFrameHeight = 111;
-const kingFps = 6;
-const floorHeight = 64;
-const floorFootOffset = 6;
-
-let kingIdle = null;
-let lastTime = 0;
-let running = false;
-let scale = 3;
-let kingLocked = false;
-let kingX = 0;
-let kingY = 0;
-
-const loadImage = (src) =>
-  new Promise((resolve) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.src = src;
-  });
-
-const loadKing = () =>
-  loadImage(kingIdleSource).then((image) => {
-    const frameCount = Math.floor(image.width / kingFrameWidth);
-    kingIdle = { image, frameCount, frameIndex: 0, frameTimer: 0 };
-  });
-
-const resizeCanvas = () => {
-  if (!canvas || !context) return;
-  const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = Math.floor(rect.width * dpr);
-  canvas.height = Math.floor(rect.height * dpr);
-  context.setTransform(dpr, 0, 0, dpr, 0, 0);
-  context.imageSmoothingEnabled = false;
-
-  if (kingLocked) {
-    return;
-  }
-
-  scale = Math.max(2, Math.floor(rect.height / (kingFrameHeight * 2.2)));
-};
-
-const update = (time) => {
-  if (!context || !canvas || !kingIdle) return;
-  const delta = Math.min(time - lastTime, 50);
-  lastTime = time;
-
-  kingIdle.frameTimer += delta;
-  if (kingIdle.frameTimer >= 1000 / kingFps) {
-    kingIdle.frameTimer = 0;
-    kingIdle.frameIndex = (kingIdle.frameIndex + 1) % kingIdle.frameCount;
-  }
-
-  const rect = canvas.getBoundingClientRect();
-  context.clearRect(0, 0, rect.width, rect.height);
-
-  const kingDrawWidth = kingFrameWidth * scale;
-  const kingDrawHeight = kingFrameHeight * scale;
-  if (!kingLocked) {
-    const floorTop = rect.height - floorHeight;
-    kingX = rect.width - kingDrawWidth - 24;
-    kingY = floorTop + floorFootOffset - kingDrawHeight;
-  }
-  const kingSX = kingIdle.frameIndex * kingFrameWidth;
-
-  context.save();
-  context.translate(kingX + kingDrawWidth, kingY);
-  context.scale(-1, 1);
-  context.drawImage(
-    kingIdle.image,
-    kingSX,
-    0,
-    kingFrameWidth,
-    kingFrameHeight,
-    0,
-    0,
-    kingDrawWidth,
-    kingDrawHeight
-  );
-  context.restore();
-
-  window.requestAnimationFrame(update);
-};
-
-const startScene = () => {
-  if (running || !canvas || !context) return;
-  running = true;
-  resizeCanvas();
-  const rect = canvas.getBoundingClientRect();
-  const kingDrawWidth = kingFrameWidth * scale;
-  const kingDrawHeight = kingFrameHeight * scale;
-  const floorTop = rect.height - floorHeight;
-  kingX = rect.width - kingDrawWidth - 24;
-  kingY = floorTop + floorFootOffset - kingDrawHeight;
-  kingLocked = true;
-  window.requestAnimationFrame(update);
-};
-
 const showHome = () => {
   document.body.classList.add("show-home");
-  loadKing().then(startScene);
 };
 
 const playSplash = () => {
@@ -122,7 +18,6 @@ const playSplash = () => {
   splash.addEventListener("animationend", showHome, { once: true });
 };
 
-window.addEventListener("resize", resizeCanvas);
 playSplash();
 
 const tabs = document.querySelectorAll("[data-tab]");
@@ -151,6 +46,15 @@ const setPanelRect = (rect) => {
   panel.style.height = `${rect.height}px`;
 };
 
+const sizePanelToContent = (width, maxHeight = Infinity) => {
+  if (!panel) return;
+  panel.style.width = `${width}px`;
+  panel.style.height = "auto";
+  const contentHeight = panel.scrollHeight;
+  const finalHeight = Math.min(contentHeight, maxHeight);
+  panel.style.height = `${finalHeight}px`;
+};
+
 const closePanel = (tabEl, callback) => {
   if (!panel || !tabEl) return;
   panel.classList.remove("is-open");
@@ -169,10 +73,74 @@ const closePanel = (tabEl, callback) => {
   panel.addEventListener("transitionend", onEnd);
 };
 
+const buildPanelContent = (tabEl) => {
+  if (!tabEl) return "";
+  const tabName = tabEl.dataset.tab;
+  const tabTitle = tabEl.textContent;
+  if (tabName === "projects") {
+    return `
+      <div class="tab-panel-title">${tabTitle}</div>
+      <div class="tab-panel-body">
+        <a class="project-card" href="../room/index.html">
+          <div>
+            <div class="project-name">The Room</div>
+            <div class="project-meta">Minimal black space</div>
+          </div>
+          <span class="project-cta">Enter</span>
+        </a>
+        <a class="project-card" href="../gamehub/index.html">
+          <div>
+            <div class="project-name">Game Hub</div>
+            <div class="project-meta">Explore and build games</div>
+          </div>
+          <span class="project-cta">Launch</span>
+        </a>
+      </div>
+    `;
+  }
+
+  if (tabName === "info") {
+    return `
+      <div class="tab-panel-title">${tabTitle}</div>
+      <div class="tab-panel-body">
+        <p>
+          GDD is the Game Development & Design Society of the Univeristy of Bristol.<br /><br />
+          We host workshops, build projects, and help expand the game dev community in Bristol.<br /><br />
+          This webspage serves as the hub to our projects. Check out our society repository on github, and various social
+          media pages, via the links at the top right.<br /><br />
+          We put a lot of work into this society and we hope you enjoy our efforts!<br /><br />
+          -Aziz
+        </p>
+      </div>
+    `;
+  }
+
+  if (tabName === "contact") {
+    return `
+      <div class="tab-panel-title">${tabTitle}</div>
+      <div class="tab-panel-body">
+        <p>
+          Hello, if you wanted to reach out there are two ways.<br /><br />
+          Students:<br />
+          If you are interested in joining the society or want to ask any questions, the best way would be to check out the
+          <a href="https://chat.whatsapp.com/Gexv7SPRjp82JHYYJUf6SS" target="_blank" rel="noreferrer">Whatsapp</a> group chat
+          or <a href="https://www.instagram.com/gddbristol/" target="_blank" rel="noreferrer">Instagram</a> page and send us a
+          message on either.<br /><br />
+          Other:<br />
+          If you want to contact us more formally for collaboration or other purposes you can reach out to us at
+          <a href="mailto:gddbristol@gmail.com">gddbristol@gmail.com</a>.
+        </p>
+      </div>
+    `;
+  }
+
+  return `<div class="tab-panel-title">${tabTitle}</div>`;
+};
+
 const openPanel = (tabEl) => {
   if (!panel || !tabEl) return;
   const rect = getRect(tabEl);
-  panel.innerHTML = `<div class=\"tab-panel-title\">${tabEl.textContent}</div>`;
+  panel.innerHTML = buildPanelContent(tabEl);
   panel.style.opacity = "1";
   setPanelRect(rect);
   panel.style.borderRadius = "999px";
@@ -181,11 +149,12 @@ const openPanel = (tabEl) => {
 
   const parentRect = homeContent.getBoundingClientRect();
   const targetWidth = Math.min(640, parentRect.width - 32);
-  const targetHeight = 180;
   const centerLeft = (parentRect.width - targetWidth) / 2;
   const centerTop = rect.top + rect.height + 32;
   const slideWidth = rect.width * 1.1;
   const slideHeight = rect.height;
+  const availableHeight = Math.floor(parentRect.height - centerTop - 24);
+  const targetHeight = Math.max(140, Math.min(availableHeight, parentRect.height - centerTop - 24));
 
   const stepToCenter = () => {
     setPanelRect({
@@ -204,6 +173,9 @@ const openPanel = (tabEl) => {
       top: centerTop,
       width: targetWidth,
       height: targetHeight,
+    });
+    window.requestAnimationFrame(() => {
+      sizePanelToContent(targetWidth, availableHeight);
     });
   };
 
@@ -226,6 +198,16 @@ tabs.forEach((tab) => {
     }
     openPanel(tab);
   });
+});
+
+window.addEventListener("resize", () => {
+  if (!panel || !panel.classList.contains("is-open") || !homeContent) return;
+  const parentRect = homeContent.getBoundingClientRect();
+  const targetWidth = Math.min(640, parentRect.width - 32);
+  const centerLeft = (parentRect.width - targetWidth) / 2;
+  const availableHeight = Math.floor(parentRect.height - panel.offsetTop - 24);
+  panel.style.left = `${centerLeft}px`;
+  sizePanelToContent(targetWidth, availableHeight);
 });
 
 const STORAGE_KEY = "gddTheme";
