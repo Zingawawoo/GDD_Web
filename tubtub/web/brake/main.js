@@ -31,7 +31,8 @@ const MAX_SPEED_FWD = 800;
 const MAX_SPEED_REV = 240;
 const GROUND_FRICTION = 300;
 const HANDBRAKE_FRICTION = 1400;
-const TURN_RATE = 3.6;
+const TURN_RATE_MAX = 4.0;
+const TURN_RATE_MIN = 2.0;
 const HOP_HEIGHT = 22;
 const HOP_DURATION = 220;
 const HOP_SCALE = 1.08;
@@ -100,13 +101,19 @@ function update(_, dtMs) {
   }
 
   if (driftPressed) {
+    speed *= 0.9;
     hopUntil = performance.now() + HOP_DURATION;
   }
 
   speed = Phaser.Math.Clamp(speed, -MAX_SPEED_REV, MAX_SPEED_FWD);
 
+  const hop = hopState();
+
   if (Math.abs(speed) > 1) {
-    heading += steer * TURN_RATE * dt;
+    const speedRatio = Phaser.Math.Clamp(Math.abs(speed) / MAX_SPEED_FWD, 0, 1);
+    const baseTurn = Phaser.Math.Linear(TURN_RATE_MAX, TURN_RATE_MIN, speedRatio);
+    const turnRate = hop.strength > 0 ? 5.0 : baseTurn;
+    heading += steer * turnRate * dt;
     heading = Phaser.Math.Angle.Normalize(heading);
   }
 
@@ -114,7 +121,6 @@ function update(_, dtMs) {
   const vy = Math.sin(heading) * speed;
   pos.x = Phaser.Math.Clamp(pos.x + vx * dt, 0, WORLD_WIDTH);
   pos.y = Phaser.Math.Clamp(pos.y + vy * dt, 0, WORLD_HEIGHT);
-  const hop = hopState();
   car.setPosition(pos.x, pos.y - hop.offset);
   car.setScale(1 + (HOP_SCALE - 1) * hop.strength);
 
