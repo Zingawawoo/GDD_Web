@@ -468,19 +468,18 @@ if (message) {
   setupDrag(barBoss);
   document.querySelectorAll("[data-slot]").forEach((slot) => setupDrop(slot));
 
-  const isExactHighlightSelected = () => {
+  const isHighlightSelected = () => {
     if (!highlightWord) return false;
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return false;
+    if (selection.isCollapsed) return false;
     const range = selection.getRangeAt(0);
-    const selectedText = selection.toString().trim().toLowerCase();
-    if (selectedText !== "highlight") return false;
     return range.intersectsNode(highlightWord);
   };
 
   const onSelectionChange = () => {
     if (!surveyActive || bossActive) return;
-    const isHighlighted = isExactHighlightSelected();
+    const isHighlighted = isHighlightSelected();
     setHighlightWord(isHighlighted);
   };
 

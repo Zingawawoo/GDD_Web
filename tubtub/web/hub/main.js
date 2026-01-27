@@ -46,31 +46,72 @@ const setPanelRect = (rect) => {
   panel.style.height = `${rect.height}px`;
 };
 
-const sizePanelToContent = (width, maxHeight = Infinity) => {
-  if (!panel) return;
-  panel.style.width = `${width}px`;
+const measurePanelHeight = (targetWidth, centerLeft, centerTop, availableHeight) => {
+  if (!panel) return 0;
+  panel.classList.add("is-measuring");
+  panel.style.left = `${centerLeft}px`;
+  panel.style.top = `${centerTop}px`;
+  panel.style.width = `${targetWidth}px`;
   panel.style.height = "auto";
-  const contentHeight = panel.scrollHeight;
-  const finalHeight = Math.min(contentHeight, maxHeight);
-  panel.style.height = `${finalHeight}px`;
+  panel.style.maxHeight = `${availableHeight}px`;
+  panel.style.visibility = "hidden";
+  const measured = Math.min(panel.scrollHeight, availableHeight);
+  panel.style.visibility = "";
+  panel.classList.remove("is-measuring");
+  return measured;
+};
+
+const getPanelLayout = (tabEl) => {
+  const rect = getRect(tabEl);
+  const parentRect = homeContent.getBoundingClientRect();
+  const targetWidth = Math.min(640, Math.max(260, parentRect.width - 32));
+  const centerLeft = (parentRect.width - targetWidth) / 2;
+  const centerTop = rect.top + rect.height + 24;
+  const availableHeight = Math.max(140, Math.floor(parentRect.height - centerTop - 24));
+  return {
+    rect,
+    targetWidth,
+    centerLeft,
+    centerTop,
+    availableHeight,
+  };
 };
 
 const closePanel = (tabEl, callback) => {
   if (!panel || !tabEl) return;
   panel.classList.remove("is-open");
-  setPanelRect(getRect(tabEl));
+  const rect = getRect(tabEl);
+  const currentHeight = Math.max(panel.offsetHeight, rect.height);
+  const scale = Math.min(1, rect.height / currentHeight);
+  panel.style.setProperty("--panel-scale", scale.toString());
+  setPanelRect({
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+    height: currentHeight,
+  });
   panel.style.borderRadius = "999px";
   isAnimating = true;
 
-  const onEnd = () => {
-    panel.removeEventListener("transitionend", onEnd);
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
     panel.style.opacity = "0";
+    panel.style.maxHeight = "";
     tabEl.classList.remove("is-hidden");
     activeTab = null;
     isAnimating = false;
     if (callback) callback();
   };
+
+  const onEnd = (event) => {
+    if (event.propertyName !== "transform") return;
+    panel.removeEventListener("transitionend", onEnd);
+    finish();
+  };
   panel.addEventListener("transitionend", onEnd);
+  window.setTimeout(finish, 360);
 };
 
 const buildPanelContent = (tabEl) => {
@@ -139,49 +180,34 @@ const buildPanelContent = (tabEl) => {
 
 const openPanel = (tabEl) => {
   if (!panel || !tabEl) return;
-  const rect = getRect(tabEl);
+  const { rect, targetWidth, centerLeft, centerTop, availableHeight } = getPanelLayout(tabEl);
   panel.innerHTML = buildPanelContent(tabEl);
   panel.style.opacity = "1";
-  setPanelRect(rect);
+  panel.classList.remove("is-open");
+  panel.style.maxHeight = "";
+  const targetHeight = measurePanelHeight(targetWidth, centerLeft, centerTop, availableHeight);
+  const startScale = Math.min(1, rect.height / Math.max(targetHeight, 1));
+  panel.style.setProperty("--panel-scale", startScale.toString());
+  setPanelRect({
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+    height: targetHeight,
+  });
   panel.style.borderRadius = "999px";
   activeTab = tabEl;
   tabEl.classList.add("is-hidden");
 
-  const parentRect = homeContent.getBoundingClientRect();
-  const targetWidth = Math.min(640, parentRect.width - 32);
-  const centerLeft = (parentRect.width - targetWidth) / 2;
-  const centerTop = rect.top + rect.height + 32;
-  const slideWidth = rect.width * 1.1;
-  const slideHeight = rect.height;
-  const availableHeight = Math.floor(parentRect.height - centerTop - 24);
-  const targetHeight = Math.max(140, Math.min(availableHeight, parentRect.height - centerTop - 24));
-
-  const stepToCenter = () => {
-    setPanelRect({
-      left: centerLeft + targetWidth / 2 - slideWidth / 2,
-      top: centerTop,
-      width: slideWidth,
-      height: slideHeight,
-    });
-  };
-
-  const stepExpand = () => {
+  window.requestAnimationFrame(() => {
     panel.classList.add("is-open");
     panel.style.borderRadius = "18px";
+    panel.style.setProperty("--panel-scale", "1");
     setPanelRect({
       left: centerLeft,
       top: centerTop,
       width: targetWidth,
       height: targetHeight,
     });
-    window.requestAnimationFrame(() => {
-      sizePanelToContent(targetWidth, availableHeight);
-    });
-  };
-
-  window.requestAnimationFrame(() => {
-    stepToCenter();
-    window.setTimeout(stepExpand, 180);
   });
 };
 
@@ -201,13 +227,16 @@ tabs.forEach((tab) => {
 });
 
 window.addEventListener("resize", () => {
-  if (!panel || !panel.classList.contains("is-open") || !homeContent) return;
-  const parentRect = homeContent.getBoundingClientRect();
-  const targetWidth = Math.min(640, parentRect.width - 32);
-  const centerLeft = (parentRect.width - targetWidth) / 2;
-  const availableHeight = Math.floor(parentRect.height - panel.offsetTop - 24);
-  panel.style.left = `${centerLeft}px`;
-  sizePanelToContent(targetWidth, availableHeight);
+  if (!panel || !panel.classList.contains("is-open") || !homeContent || !activeTab) return;
+  const { rect, targetWidth, centerLeft, centerTop, availableHeight } = getPanelLayout(activeTab);
+  const targetHeight = measurePanelHeight(targetWidth, centerLeft, centerTop, availableHeight);
+  panel.style.setProperty("--panel-scale", "1");
+  setPanelRect({
+    left: centerLeft,
+    top: centerTop,
+    width: targetWidth,
+    height: targetHeight,
+  });
 });
 
 const STORAGE_KEY = "gddTheme";

@@ -227,7 +227,6 @@ body:not(.light-mode) .home-bg-dark {
 
 .game-tab.is-hidden {
   opacity: 0;
-  transform: scale(0.7);
   pointer-events: none;
 }
 
@@ -249,14 +248,21 @@ body:not(.light-mode) .home-bg-dark {
   opacity: 0;
   overflow: hidden;
   overflow-y: auto;
+  transform-origin: top;
+  transform: scaleY(var(--panel-scale, 0.7));
+  will-change: left, top, width, transform, opacity;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
   transition:
     left 320ms ease,
     top 320ms ease,
     width 320ms ease,
-    height 320ms ease,
+    transform 320ms ease,
     border-radius 320ms ease,
     opacity 220ms ease;
+}
+
+.tab-panel.is-measuring {
+  transition: none;
 }
 
 .tab-panel .tab-panel-title {
@@ -282,6 +288,15 @@ body:not(.light-mode) .home-bg-dark {
   margin-top: 14px;
   display: grid;
   gap: 12px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.tab-panel.is-open .tab-panel-body {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 120ms;
 }
 
 .project-card {
