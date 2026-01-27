@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Brake</title>
     <style>
+      @font-face {
+        font-family: "Upheav";
+        src: url("Assets/font/upheavtt.ttf") format("truetype");
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "M12";
+        src: url("Assets/font/m12.TTF") format("truetype");
+        font-display: swap;
+      }
       :root {
         color-scheme: light;
       }
@@ -16,6 +26,7 @@
         height: 100%;
         background: #0b0f16;
         overflow: hidden;
+        font-family: "Upheav", "Trebuchet MS", Tahoma, sans-serif;
       }
       #game {
         width: 100vw;
@@ -24,10 +35,230 @@
       canvas {
         display: block;
       }
+      .screen {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: grid;
+        grid-template-columns: minmax(280px, 340px) 1fr;
+        gap: 18px;
+        padding: 24px;
+        background:
+          radial-gradient(circle at 20% 20%, rgba(76, 89, 120, 0.35), transparent 55%),
+          radial-gradient(circle at 80% 10%, rgba(245, 211, 106, 0.25), transparent 50%),
+          #0b0f16;
+        color: #e7edf5;
+      }
+      .screen.full {
+        grid-template-columns: 1fr;
+        place-items: center;
+        text-align: center;
+      }
+      .screen.hidden {
+        display: none;
+      }
+      .panel {
+        background: rgba(8, 10, 16, 0.82);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 16px;
+        padding: 16px;
+        display: grid;
+        gap: 14px;
+        min-height: 420px;
+      }
+      .panel h1 {
+        margin: 0;
+        font-size: 16px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+      .title {
+        font-family: "M12", "Upheav", "Trebuchet MS", Tahoma, sans-serif;
+        font-size: 56px;
+        letter-spacing: 6px;
+      }
+      .panel .subtitle {
+        font-size: 12px;
+        opacity: 0.7;
+      }
+      .preview-card {
+        background: rgba(20, 26, 35, 0.9);
+        border-radius: 12px;
+        padding: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        display: grid;
+        gap: 8px;
+      }
+      .preview-card .preview-img {
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.2));
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+      }
+      .preview-card img {
+        width: 140px;
+        image-rendering: auto;
+      }
+      .swatches {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .swatch {
+        width: 26px;
+        height: 26px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        cursor: pointer;
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+      }
+      .swatch.active {
+        outline: 2px solid #f5d36a;
+        outline-offset: 2px;
+      }
+      .start-btn {
+        background: #f5d36a;
+        color: #151b23;
+        border: none;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        cursor: pointer;
+      }
+      .ghost-btn {
+        background: transparent;
+        color: #e7edf5;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        cursor: pointer;
+      }
+      .menu-list {
+        display: grid;
+        gap: 10px;
+      }
+      .map-card {
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 14px;
+        padding: 12px;
+        display: grid;
+        gap: 8px;
+        cursor: pointer;
+        background: rgba(16, 20, 28, 0.9);
+      }
+      .map-card.active {
+        border-color: #f5d36a;
+        box-shadow: 0 0 0 2px rgba(245, 211, 106, 0.3);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        align-content: start;
+      }
+      .car-card {
+        background: rgba(16, 20, 28, 0.9);
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 10px;
+        display: grid;
+        gap: 8px;
+        cursor: pointer;
+        transition: transform 0.15s ease, border-color 0.15s ease;
+      }
+      .car-card.active {
+        border-color: #f5d36a;
+        transform: translateY(-2px);
+      }
+      .car-card img {
+        width: 100%;
+        height: 64px;
+        object-fit: contain;
+        filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.4));
+      }
+      .car-card .name {
+        font-size: 12px;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
   </head>
   <body>
+    <div class="screen full" id="splash-screen">
+      <div class="panel">
+        <h1 class="title">Brake</h1>
+        <div class="subtitle">Top-down arcade racing</div>
+        <button class="start-btn" id="splash-continue">Press to Start</button>
+      </div>
+    </div>
+
+    <div class="screen full hidden" id="menu-screen">
+      <div class="panel">
+        <h1>Main Menu</h1>
+        <div class="menu-list">
+          <button class="start-btn" id="menu-play">Play</button>
+          <button class="ghost-btn" id="menu-rules">Rules</button>
+          <button class="ghost-btn" id="menu-character">Character Select</button>
+          <button class="ghost-btn" id="menu-map">Map Select</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen full hidden" id="rules-screen">
+      <div class="panel">
+        <h1>Rules</h1>
+        <div class="subtitle">
+          W/S accelerate/reverse · A/D steer · Space handbrake · Shift hop
+        </div>
+        <button class="ghost-btn" id="rules-back">Back</button>
+      </div>
+    </div>
+
+    <div class="screen hidden" id="character-screen">
+      <div class="panel">
+        <h1>Choose Your Ride</h1>
+        <div class="subtitle">Pick a car, then a color.</div>
+        <div class="preview-card">
+          <div class="preview-img">
+            <img id="preview-image" alt="Selected car preview" />
+          </div>
+          <div id="preview-name">Sport</div>
+        </div>
+        <div>
+          <div class="subtitle">Color</div>
+          <div class="swatches" id="color-swatches"></div>
+        </div>
+        <button class="start-btn" id="character-continue">Continue</button>
+        <button class="ghost-btn" id="character-back">Back</button>
+      </div>
+      <div class="panel">
+        <h1>Garage</h1>
+        <div class="grid" id="car-grid"></div>
+      </div>
+    </div>
+
+    <div class="screen full hidden" id="map-screen">
+      <div class="panel">
+        <h1>Map Select</h1>
+        <div class="grid" id="map-grid">
+          <div class="map-card active" data-map="grid">Grid Loop</div>
+          <div class="map-card" data-map="oval">Oval Sprint</div>
+          <div class="map-card" data-map="switchback">Switchback</div>
+        </div>
+        <button class="start-btn" id="map-continue">Start Race</button>
+        <button class="ghost-btn" id="map-back">Back</button>
+      </div>
+    </div>
     <div id="game"></div>
     <script src="main.js"></script>
   </body>
