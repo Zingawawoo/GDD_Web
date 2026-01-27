@@ -8,8 +8,8 @@ const config = {
   backgroundColor: "#11131a",
   render: {
     pixelArt: true,
-    antialias: true,
-    roundPixels: false,
+    antialias: false ,
+    roundPixels: true,
   },
   scale: {
     mode: Phaser.Scale.FIT,
