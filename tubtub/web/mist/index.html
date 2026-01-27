@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mist Phaser Test</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        background: radial-gradient(circle at 20% 20%, #2b2f3a, #0f1116 65%, #0a0b0f 100%);
+        color: #e7e7e7;
+        font-family: "Trebuchet MS", Tahoma, sans-serif;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #game {
+        width: min(960px, 96vw);
+        aspect-ratio: 16 / 9;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+      }
+      #game canvas {
+        image-rendering: auto;
+      }
+      .hint {
+        position: fixed;
+        left: 16px;
+        bottom: 14px;
+        font-size: 12px;
+        opacity: 0.75;
+        line-height: 1.4;
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
+  </head>
+  <body>
+    <div id="game"></div>
+    <div class="hint">
+      WASD move · Space jump · LShift dash/hold run · LMB combo · RMB block · Q special · E throw · F heal
+    </div>
+    <script src="main.js"></script>
+  </body>
+</html>
