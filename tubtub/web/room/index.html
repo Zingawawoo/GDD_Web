@@ -10,17 +10,80 @@
 </head>
 <body>
   <div class="room-controls" aria-label="Room controls">
-    <button class="room-control" type="button" data-action="restart">Restart</button>
-    <button class="room-control" type="button" data-action="levels" aria-expanded="false" aria-controls="level-menu">Level Selector</button>
-    <button class="room-control" type="button" data-action="quit">Quit</button>
-    <div class="level-menu" id="level-menu" aria-label="Level selector" hidden></div>
+    <button class="room-tab" type="button" data-action="toggle-controls" aria-expanded="false" aria-controls="room-controls-panel">
+      Menu
+    </button>
+    <div class="room-controls-panel" id="room-controls-panel" data-controls-panel hidden>
+      <button class="room-control" type="button" data-action="restart">Restart</button>
+      <button class="room-control" type="button" data-action="levels" aria-expanded="false" aria-controls="level-menu">Level Selector</button>
+      <button class="room-control" type="button" data-action="quit">Quit</button>
+      <div class="level-menu" id="level-menu" aria-label="Level selector" hidden></div>
+    </div>
   </div>
   <main class="room" aria-label="The Room">
     <div class="room-ending" data-room-ending hidden>
       Thats all the room has to offer. for now.
     </div>
     <section class="room-panel room-top" aria-live="polite">
-      <div class="room-message" data-room-message>Welcome to the room</div>
+      <div class="room-message" data-room-message>
+        <h1 class="room-title" data-room-title>Welcome to the room</h1>
+        <p class="room-subtitle" data-room-subtitle>
+          This is a series of puzzles designed around both game and web design. Anything could be a solution (except for the website code, so you shouldn't have to use inspect or anything like that). The menu provides a level selector and a restart button, which allows you to switch or reset the current level. These puzzles are carefully designed. Everything is a hint, everything could be the solution. They will progressively get harder/weirder. Good luck!
+        </p>
+      </div>
+      <div class="room-guess" data-room-guess hidden>
+        <label class="room-guess-label" for="room-guess-input" data-room-guess-label>
+          Guess the solution correctly and make it to the next level.
+        </label>
+        <div class="room-guess-inputs">
+          <input
+            class="room-guess-input"
+            id="room-guess-input"
+            type="text"
+            autocomplete="off"
+            placeholder="Your guess"
+            data-room-guess-input
+          />
+          <button class="room-guess-submit" type="button" data-room-guess-submit>Submit</button>
+        </div>
+      </div>
+      <div class="room-evade" data-room-evade hidden>
+        <button class="room-evade-button" type="button" data-room-evade-button>Next level</button>
+      </div>
+      <div class="room-sprite" data-room-sprite hidden aria-hidden="true">
+        <img
+          class="room-sprite-image"
+          data-room-sprite-image
+          alt=""
+          src="./assets/Bob/Bringer-of-Death_Idle_1.png"
+        />
+      </div>
+      <div class="room-tetris" data-room-tetris hidden aria-hidden="true"></div>
+      <div class="cookie-banner" data-room-cookie hidden role="dialog" aria-live="polite" aria-label="Cookie preferences">
+        <div class="cookie-stack">
+          <button class="cookie-next" type="button" data-room-cookie-next hidden>Next level</button>
+          <div class="cookie-card" data-room-cookie-card>
+            <div class="cookie-header">
+              <div class="cookie-title">We value your privacy</div>
+              <button class="cookie-close" type="button" data-cookie-action="close" aria-label="Close">×</button>
+            </div>
+          <div class="cookie-body">
+            <p>
+              We use cookies to enhance your browsing experience, serve personalized ads or content,
+              and analyze our traffic. By clicking “Accept all”, you consent to our use of cookies.
+            </p>
+          </div>
+          <div class="cookie-actions">
+            <button class="cookie-button cookie-button--secondary" type="button" data-cookie-action="manage">Manage preferences</button>
+            <button class="cookie-button cookie-button--secondary" type="button" data-cookie-action="reject">Reject all</button>
+            <button class="cookie-button" type="button" data-cookie-action="accept">Accept all</button>
+          </div>
+          <div class="cookie-links">
+            <a href="#" class="cookie-link">Cookie Policy</a>
+            <a href="#" class="cookie-link">Privacy Policy</a>
+          </div>
+        </div>
+      </div>
       <div class="survey" data-room-survey hidden>
         <div class="survey-question" data-survey-question>
           What has been the <span class="survey-highlight" data-highlight-word>highlight</span> of this game so far?
@@ -55,9 +118,6 @@
           <button class="boss-action" type="button" data-boss-action="retry">Try again</button>
         </div>
       </div>
-    </section>
-    <section class="room-panel room-bottom" data-room-bottom>
-      <div class="room-message room-message--bottom">This is a series of puzzles.</div>
     </section>
   </main>
 </body>
