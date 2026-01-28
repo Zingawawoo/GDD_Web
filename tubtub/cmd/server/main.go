@@ -69,9 +69,6 @@ func main() {
 			http.FileServer(http.Dir(filepath.Join(root, "web", "room"))),
 		),
 	)
-	mux.HandleFunc("/room", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/room/", http.StatusMovedPermanently)
-	})
 
 	// Make sure this folder exists for blurred images
 	os.MkdirAll(filepath.Join(root, "web", "guesser", "blur_cache"), 0755)

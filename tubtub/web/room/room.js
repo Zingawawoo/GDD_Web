@@ -928,7 +928,7 @@ if (message) {
         toggleLevelMenu();
       }
       if (action === "quit") {
-        window.location.href = "../hub/index.html";
+        window.location.href = "/";
       }
       const levelId = target.getAttribute("data-level");
       if (levelId) {
