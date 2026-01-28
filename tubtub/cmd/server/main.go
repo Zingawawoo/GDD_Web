@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"mime"
 
-	"tubtub/internal/chat"
 	"tubtub/internal/guesser"
 	"tubtub/internal/webutil"
 )
@@ -51,7 +50,6 @@ func main() {
 	}
 
 	sessionStore := guesser.NewSessionStore(idx)
-	chatHub := chat.NewHub()
 
 	mux := http.NewServeMux()
 
@@ -62,11 +60,6 @@ func main() {
 		http.FileServer(http.Dir(filepath.Join(root, "web", "hub"))),
 	)
 
-	mux.Handle("/chat/",
-		http.StripPrefix("/chat/",
-			http.FileServer(http.Dir(filepath.Join(root, "web", "chat"))),
-		),
-	)
 
 	mux.Handle("/gamehub/",
 		http.StripPrefix("/gamehub/",
@@ -74,19 +67,18 @@ func main() {
 		),
 	)
 
-	mux.Handle("/roadmap/",
-		http.StripPrefix("/roadmap/",
-			http.FileServer(http.Dir(filepath.Join(root, "web", "roadmap"))),
+	mux.Handle("/room/",
+		http.StripPrefix("/room/",
+			http.FileServer(http.Dir(filepath.Join(root, "web", "room"))),
 		),
 	)
+	mux.HandleFunc("/room", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/room/", http.StatusMovedPermanently)
+	})
+
 
 	// Make sure this folder exists for blurred images
 	os.MkdirAll(filepath.Join(root, "web", "guesser", "blur_cache"), 0755)
-
-	// -----------------------------
-	// WEBSOCKETS
-	// -----------------------------
-	mux.HandleFunc("/ws/chat", chatHub.HandleWS)
 
 	// -----------------------------
 	// API: Guessing game
