@@ -23,24 +23,10 @@ func WithSecurityHeaders(next http.Handler) http.Handler {
 				"script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://static.cloudflareinsights.com; "+
 				"base-uri 'self'; form-action 'self'; frame-ancestors 'self';")
 
-		// --- Cache-control by type
-		p := r.URL.Path
-		switch {
-		case strings.HasSuffix(p, ".html") || p == "/" || p == "":
-			// HTML: never hard-cache (so layout updates show immediately)
-			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-			w.Header().Set("Pragma", "no-cache")
-			w.Header().Set("Expires", "0")
-		case strings.HasSuffix(p, ".css") ||
-			strings.HasSuffix(p, ".js")  ||
-			strings.HasSuffix(p, ".wasm") ||
-			strings.HasSuffix(p, ".pck"):
-
-			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-		default:
-			// Images/fonts/etc.
-			w.Header().Set("Cache-Control", "public, max-age=604800")
-		}
+		// --- Cache-control: disable caching for all assets
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
 
 		// Continue to the next handler
 		if strings.HasSuffix(r.URL.Path, ".wasm") {

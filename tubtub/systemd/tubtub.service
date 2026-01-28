@@ -1,0 +1,16 @@
+[Unit]
+Description=Tubtub GameHub Server
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/opt/tubtub
+ExecStart=/opt/tubtub/tubtub
+Restart=always
+RestartSec=2
+Environment=PORT=9000
+
+[Install]
+WantedBy=multi-user.target

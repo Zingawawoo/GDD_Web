@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -37,7 +36,10 @@ func projectRoot() string {
 }
 
 func main() {
-	root := projectRoot()
+	root := os.Getenv("TUBTUB_ROOT")
+	if root == "" {
+		root = projectRoot()
+	}
 	log.Printf("Using project root: %s\n", root)
 
 	datasetPath := filepath.Join(root, "web", "guesser", "games.json")
@@ -97,11 +99,16 @@ func main() {
 	// -----------------------------
 	// FINAL SERVER WRAP
 	// -----------------------------
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "9000"
+	}
+
 	srv := &http.Server{
-		Addr:    ":9000",
+		Addr:    ":" + port,
 		Handler: webutil.WithSecurityHeaders(mux),
 	}
 
-	log.Println("Unified Tubtub GameHub Server running on :9000")
+	log.Printf("Unified Tubtub GameHub Server running on :%s\n", port)
 	log.Fatal(srv.ListenAndServe())
 }
