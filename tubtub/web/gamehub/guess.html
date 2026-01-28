@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Game Guesser</title>
+  <link rel="icon" type="image/png" href="../../favicon.png" />
+<link rel="stylesheet" href="./styles/base.css" />
+<link rel="stylesheet" href="./styles/nav.css" />
+<link rel="stylesheet" href="./styles/guess.css?v=3" />
+</head>
+<body class="guesser-body fade-prep">
+
+<header class="nav">
+  <div class="logo">GameHub</div>
+  <nav class="nav-links">
+    <a href="index.html">Home</a>
+    <a class="active" href="guess.html">Guess</a>
+    <a href="build.html">Build</a>
+    <a href="explore.html">Explore</a>
+  </nav>
+</header>
+<div class="nav-spacer"></div>
+
+<main class="guesser-main gated" id="guesser-main">
+  <div class="bg-gradient"></div>
+  <div class="bg-noise"></div>
+
+  <section id="start-gate" class="start-gate">
+    <div class="start-panel">
+      <div class="start-brand fade-slot" id="start-brand">
+        <div class="logo-mark">★</div>
+        <p class="eyebrow">Game Guesser</p>
+        <h2 class="start-title">Ready to start guessing?</h2>
+        <button id="start-btn" class="btn neon wide start-large">Start</button>
+      </div>
+
+      <div class="start-instructions hidden" id="start-instructions">
+        <div class="instruction-step" id="instruction-text"></div>
+        <button id="next-instruction" class="btn outline wide">Next</button>
+      </div>
+
+      <div class="start-difficulties hidden" id="start-difficulties">
+        <p class="eyebrow">Pick difficulty</p>
+        <p class="lede">Your hints + guesses depend on this choice.</p>
+        <div class="difficulty-grid">
+          <button class="difficulty-card" data-difficulty="easy">
+            <span class="title">Easy</span>
+            <span class="meta">10 hints · 5 guesses</span>
+          </button>
+          <button class="difficulty-card" data-difficulty="medium">
+            <span class="title">Medium</span>
+            <span class="meta">8 hints · 3 guesses</span>
+          </button>
+          <button class="difficulty-card" data-difficulty="hard">
+            <span class="title">Hard</span>
+            <span class="meta">5 hints · 1 guess</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow">Game Guesser</p>
+      <h1>Can you figure it out?</h1>
+      <p class="lede">Reveal holographic hints, watch them land in the grid, and fire your best guess. You only get a few shots—make them count.</p>
+      <div class="controls">
+        <button id="reveal-btn" class="btn neon">Reveal Next Hint</button>
+        <div class="counter">
+          <span id="hint-count">0</span> / <span id="hint-max">0</span> hints
+        </div>
+      </div>
+      <div class="status-line" id="status-text">Rolling up your mystery game...</div>
+    </div>
+
+    <div class="holo-stage">
+      <div class="holo-ring"></div>
+      <div class="holo-orb"></div>
+      <div class="shuffle-window">
+        <div id="shuffle-label" class="shuffle-label">Initializing...</div>
+        <div id="shuffle-track" class="shuffle-track"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="hints-panel">
+    <div class="panel-head">
+      <p class="eyebrow">Hint Grid</p>
+      <h2>Revealed clues</h2>
+    </div>
+    <div id="hint-grid" class="hint-grid"></div>
+  </section>
+
+  <section class="guess-panel">
+    <div class="guess-card">
+      <div class="guess-meta">
+        <div>
+          <p class="eyebrow">Your Guess</p>
+          <h3>Identify the game</h3>
+        </div>
+        <div class="guess-counter"><span id="guess-remaining">0</span> guesses left</div>
+      </div>
+      <div class="guess-input-row">
+        <input id="guess-input" placeholder="Type a game name..." list="guess-suggestions" autocomplete="off" />
+        <datalist id="guess-suggestions"></datalist>
+        <button id="guess-submit" class="btn neon">Submit Guess</button>
+      </div>
+      <div id="guess-result" class="guess-result"></div>
+    </div>
+  </section>
+</main>
+
+<div id="summary-overlay" class="summary-overlay hidden">
+  <div class="summary-panel">
+    <div class="summary-veil"></div>
+    <div class="summary-content">
+      <p class="eyebrow">Round Complete</p>
+      <h2 id="summary-title">You did it</h2>
+      <div class="summary-body">
+        <div class="summary-game">
+          <div class="label">Mystery Game</div>
+          <div id="summary-game-name" class="game-name">---</div>
+        </div>
+        <div>
+          <div class="label">Revealed Hints</div>
+          <div id="summary-hints" class="summary-hints"></div>
+        </div>
+      </div>
+      <button id="next-game" class="btn neon wide">Next Game</button>
+    </div>
+  </div>
+</div>
+
+<script src="./js/animations.js"></script>
+<script src="./js/nav.js"></script>
+<script src="./js/guess.js?v=4"></script>
+</body>
+</html>

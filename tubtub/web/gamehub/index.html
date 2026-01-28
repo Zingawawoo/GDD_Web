@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>The GameHub</title>
+  <link rel="icon" type="image/png" href="../../favicon.png" />
+  <link rel="stylesheet" href="./styles/nav.css" />
+  <style>
+    :root {
+      --purple: #7f5af0;
+      --green: #2cb67d;
+      --text: #ffffff;
+      --muted: #b8c1ec;
+      --glass: rgba(255, 255, 255, 0.08);
+      --border: rgba(255, 255, 255, 0.12);
+      --bg: #040712;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Space Grotesk", "Inter", "Sora", system-ui, -apple-system, sans-serif;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* Background layers */
+    .layer { position: fixed; inset: 0; pointer-events: none; }
+    .nebula {
+      background: radial-gradient(circle at 20% 20%, rgba(127, 90, 240, 0.25), transparent 35%),
+                  radial-gradient(circle at 80% 10%, rgba(44, 182, 125, 0.25), transparent 35%),
+                  radial-gradient(circle at 50% 80%, rgba(89, 115, 255, 0.2), transparent 40%),
+                  #050915;
+      animation: nebulaShift 40s ease-in-out infinite alternate;
+      z-index: 0;
+    }
+    .stars { z-index: 1; overflow: hidden; }
+    .stars .near, .stars .far {
+      position: absolute; inset: 0;
+      background-repeat: repeat;
+      background-size: 240px 240px;
+      opacity: 0.22;
+    }
+    .stars .near { background-image: radial-gradient(1px 1px at 20px 30px, rgba(255,255,255,0.6), transparent 50%); animation: starDrift 60s linear infinite; }
+    .stars .far { background-image: radial-gradient(1px 1px at 80px 120px, rgba(255,255,255,0.35), transparent 60%); animation: starDriftReverse 75s linear infinite; }
+    .aurora {
+      background: linear-gradient(120deg, rgba(127, 90, 240, 0.12), rgba(44, 182, 125, 0.08), rgba(127, 90, 240, 0.12));
+      filter: blur(40px);
+      opacity: 0.4;
+      animation: auroraMove 55s linear infinite;
+      z-index: 2;
+    }
+    .dust {
+      z-index: 3;
+      display: block;
+    }
+    .dust span {
+      position: absolute;
+      width: 3px; height: 3px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.4);
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+      animation: dustFloat 18s ease-in-out infinite;
+    }
+    .blob-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 4;
+      pointer-events: auto;
+    }
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(127, 90, 240, 0.16), rgba(44, 182, 125, 0.12));
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.35), 0 0 30px rgba(127, 90, 240, 0.22);
+      filter: saturate(1.1);
+      transition: box-shadow 0.25s ease;
+      animation: float 10s ease-in-out infinite;
+      pointer-events: auto;
+      touch-action: none;
+    }
+    .blob:active {
+      box-shadow: 0 24px 60px rgba(0,0,0,0.45), 0 0 40px rgba(44, 182, 125, 0.28);
+      animation-play-state: paused;
+    }
+
+    /* Layout */
+    .hero {
+      position: relative;
+      z-index: 5;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 110px 24px 60px;
+    }
+    .content {
+      max-width: 960px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 36px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(10px);
+      text-align: center;
+    }
+    .title {
+      font-size: clamp(28px, 6vw, 40px);
+      margin: 0 0 10px;
+      text-shadow: 0 0 18px rgba(127, 90, 240, 0.4);
+    }
+    .subtitle {
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+    .lede {
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 760px;
+      margin: 0 auto 24px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-top: 10px;
+    }
+    .card {
+      padding: 18px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+      text-align: left;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+      border-color: rgba(127, 90, 240, 0.4);
+    }
+    .card h3 {
+      margin: 0 0 6px;
+      font-size: 18px;
+    }
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .card-link {
+      display: block;
+      color: inherit;
+      text-decoration: none;
+    }
+    .card-link:focus-visible {
+      outline: 2px solid rgba(127, 90, 240, 0.6);
+      outline-offset: 3px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 10px;
+    }
+
+    /* Warp overlay */
+    .warp-overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle, rgba(127, 90, 240, 0.6), rgba(4, 7, 18, 0.98));
+      transform: scale(0);
+      opacity: 0;
+      transition: transform 0.5s ease, opacity 0.5s ease;
+      z-index: 15;
+      pointer-events: none;
+    }
+    .warp-overlay.active {
+      transform: scale(15);
+      opacity: 1;
+    }
+    .warp-lines {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.2), transparent 70%);
+      mix-blend-mode: screen;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 14;
+      pointer-events: none;
+    }
+    .warp-lines.active { opacity: 1; }
+
+    /* Responsive polish */
+    @media (max-width: 1024px) {
+      .hero { padding: calc(96px + env(safe-area-inset-top, 0px)) 18px 52px; min-height: auto; }
+      .content { padding: 28px; text-align: left; }
+      .subtitle { text-align: center; }
+      .title { text-align: center; }
+      .lede { text-align: center; }
+      .grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    }
+    @media (max-width: 720px) {
+      .hero { padding: calc(88px + env(safe-area-inset-top, 0px)) 14px 42px; }
+      .content { padding: 22px; border-radius: 18px; }
+      .grid { grid-template-columns: 1fr; gap: 12px; }
+      .card { padding: 14px; }
+      .card h3 { font-size: 16px; }
+      .card p { font-size: 14px; line-height: 1.6; }
+      .pill { font-size: 11px; padding: 6px 9px; }
+    }
+    @media (max-width: 520px) {
+      .hero { padding: calc(82px + env(safe-area-inset-top, 0px)) 12px 36px; }
+      .subtitle { letter-spacing: 0.1em; font-size: 12px; }
+      .lede { font-size: 15px; line-height: 1.6; }
+      .card p { margin: 0; }
+    }
+
+    @keyframes nebulaShift {
+      from { transform: translateY(-12px); }
+      to { transform: translateY(12px); }
+    }
+    @keyframes starDrift {
+      from { transform: translate3d(0,0,0); }
+      to { transform: translate3d(-20px, -40px, 0); }
+    }
+    @keyframes starDriftReverse {
+      from { transform: translate3d(0,0,0); }
+      to { transform: translate3d(30px, 20px, 0); }
+    }
+    @keyframes auroraMove {
+      from { transform: translateX(-6%); }
+      to { transform: translateX(6%); }
+    }
+    @keyframes dustFloat {
+      0% { transform: translateY(0) translateX(0); opacity: 0.6; }
+      50% { transform: translateY(-12px) translateX(6px); opacity: 1; }
+      100% { transform: translateY(8px) translateX(-6px); opacity: 0.5; }
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(0.96); }
+      50% { transform: scale(1.04); }
+    }
+  </style>
+</head>
+<body class="fade-prep">
+  <div class="layer nebula"></div>
+  <div class="layer stars">
+    <div class="near"></div>
+    <div class="far"></div>
+  </div>
+  <div class="layer aurora"></div>
+  <div class="layer dust" id="dust-layer"></div>
+  <div class="blob-layer" id="blob-layer"></div>
+
+  <header class="nav">
+    <div class="logo">GameHub</div>
+    <nav class="nav-links">
+      <a class="active" href="index.html">Home</a>
+      <a href="guess.html">Guess</a>
+      <a href="build.html">Build</a>
+      <a href="explore.html">Explore</a>
+    </nav>
+  </header>
+  <div class="nav-spacer"></div>
+
+  <div class="warp-overlay" id="warp-overlay"></div>
+  <div class="warp-lines" id="warp-lines"></div>
+
+  <main class="hero">
+    <div class="content">
+      <div class="subtitle">Discover. Create. Explore.</div>
+      <h1 class="title">Welcome to the GameHub</h1>
+      <p class="lede">Your cosmic control room for everything TubTub. Use the top navigation to jump into guessing mysteries, building new concepts, or exploring the universe of games. Each mode mirrors the neon, glassy style across the hub.</p>
+      <div class="grid">
+        <a class="card card-link" href="guess.html">
+          <h3>Guess</h3>
+          <p>Reveal holographic hints, watch them slot into the grid, and fire your best guesses with autocomplete. Limited guesses, slick hologram shuffle, and a cosmic summary when you’re done.</p>
+        </a>
+        <a class="card card-link" href="build.html">
+          <h3>Build</h3>
+          <p>Roll unknown games, lock them into twenty cosmic categories, and watch the end-grade panel light up. Uses the same neon glass aesthetic with hologram shuffle and glow-fill assignments.</p>
+        </a>
+        <a class="card card-link" href="explore.html">
+          <h3>Explore</h3>
+          <p>Browse timelines, genres, and platforms in the shared visual language. A calm, premium browsing layer to roam the dataset with clarity.</p>
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <script src="./js/nav.js"></script>
+  <script>
+    const dustLayer = document.getElementById("dust-layer");
+    const blobLayer = document.getElementById("blob-layer");
+
+    function spawnDust(count = 40) {
+      const frag = document.createDocumentFragment();
+      for (let i = 0; i < count; i++) {
+        const dot = document.createElement("span");
+        dot.style.left = Math.random() * 100 + "%";
+        dot.style.top = Math.random() * 100 + "%";
+        dot.style.animationDelay = `${Math.random() * 10}s`;
+        dot.style.opacity = 0.3 + Math.random() * 0.5;
+        frag.appendChild(dot);
+      }
+      dustLayer.appendChild(frag);
+    }
+    spawnDust();
+    // Interactive blobs behind content
+    const blobs = [];
+    function spawnBlobs(count = 6) {
+      const frag = document.createDocumentFragment();
+      for (let i = 0; i < count; i++) {
+        const blob = document.createElement("div");
+        blob.className = "blob";
+        const size = 120 + Math.random() * 120;
+        blob.style.width = `${size}px`;
+        blob.style.height = `${size}px`;
+        const x = Math.random() * (window.innerWidth - size);
+        const y = Math.random() * (window.innerHeight - size);
+        blob.style.left = `${x}px`;
+        blob.style.top = `${y}px`;
+        blob.dataset.x = x;
+        blob.dataset.y = y;
+        frag.appendChild(blob);
+        blobs.push(blob);
+      }
+      blobLayer.appendChild(frag);
+      enableDrag();
+    }
+
+    function enableDrag() {
+      blobs.forEach((blob) => {
+        blob.addEventListener("pointerdown", (e) => {
+          const startX = e.clientX;
+          const startY = e.clientY;
+          const initX = parseFloat(blob.dataset.x);
+          const initY = parseFloat(blob.dataset.y);
+          blob.setPointerCapture(e.pointerId);
+          const move = (ev) => {
+            const dx = ev.clientX - startX;
+            const dy = ev.clientY - startY;
+            let newX = initX + dx;
+            let newY = initY + dy;
+            const maxX = window.innerWidth - blob.offsetWidth;
+            const maxY = window.innerHeight - blob.offsetHeight;
+            newX = Math.max(0, Math.min(maxX, newX));
+            newY = Math.max(0, Math.min(maxY, newY));
+            blob.dataset.x = newX;
+            blob.dataset.y = newY;
+            blob.style.left = `${newX}px`;
+            blob.style.top = `${newY}px`;
+            resolveCollisions(blob);
+          };
+          const up = (ev) => {
+            blob.releasePointerCapture(ev.pointerId);
+            window.removeEventListener("pointermove", move);
+            window.removeEventListener("pointerup", up);
+          };
+          window.addEventListener("pointermove", move);
+          window.addEventListener("pointerup", up);
+        });
+      });
+    }
+
+    function resolveCollisions(activeBlob) {
+      const ax = parseFloat(activeBlob.dataset.x);
+      const ay = parseFloat(activeBlob.dataset.y);
+      const ar = activeBlob.offsetWidth / 2;
+      const acx = ax + ar;
+      const acy = ay + ar;
+
+      blobs.forEach((blob) => {
+        if (blob === activeBlob) return;
+        const bx = parseFloat(blob.dataset.x);
+        const by = parseFloat(blob.dataset.y);
+        const br = blob.offsetWidth / 2;
+        const bcx = bx + br;
+        const bcy = by + br;
+        const dx = bcx - acx;
+        const dy = bcy - acy;
+        const dist = Math.hypot(dx, dy) || 1;
+        const overlap = ar + br - dist;
+        if (overlap > 0) {
+          const push = overlap / 2;
+          const nx = dx / dist;
+          const ny = dy / dist;
+          const newBX = Math.max(0, Math.min(window.innerWidth - blob.offsetWidth, bx + nx * push));
+          const newBY = Math.max(0, Math.min(window.innerHeight - blob.offsetHeight, by + ny * push));
+          blob.dataset.x = newBX;
+          blob.dataset.y = newBY;
+          blob.style.left = `${newBX}px`;
+          blob.style.top = `${newBY}px`;
+        }
+      });
+    }
+
+    spawnBlobs();
+  </script>
+</body>
+</html>

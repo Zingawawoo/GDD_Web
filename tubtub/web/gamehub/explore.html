@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Game Explorer</title>
+  <link rel="icon" type="image/png" href="../../favicon.png" />
+  <link rel="stylesheet" href="./styles/nav.css" />
+  <style>
+    :root {
+      --purple: #7f5af0;
+      --green: #2cb67d;
+      --text: #ffffff;
+      --muted: #b8c1ec;
+      --glass: rgba(255, 255, 255, 0.08);
+      --border: rgba(255, 255, 255, 0.12);
+      --bg: #040712;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Space Grotesk", "Inter", "Sora", system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* Background layers */
+    .layer { position: fixed; inset: 0; pointer-events: none; }
+    .nebula {
+      background: radial-gradient(circle at 20% 20%, rgba(127, 90, 240, 0.25), transparent 35%),
+                  radial-gradient(circle at 80% 10%, rgba(44, 182, 125, 0.25), transparent 35%),
+                  radial-gradient(circle at 50% 80%, rgba(89, 115, 255, 0.2), transparent 40%),
+                  #050915;
+      animation: nebulaShift 40s ease-in-out infinite alternate;
+      z-index: 0;
+    }
+    .stars { z-index: 1; overflow: hidden; }
+    .stars .near, .stars .far {
+      position: absolute; inset: 0;
+      background-repeat: repeat;
+      background-size: 240px 240px;
+      opacity: 0.22;
+    }
+    .stars .near { background-image: radial-gradient(1px 1px at 20px 30px, rgba(255,255,255,0.6), transparent 50%); animation: starDrift 60s linear infinite; }
+    .stars .far { background-image: radial-gradient(1px 1px at 80px 120px, rgba(255,255,255,0.35), transparent 60%); animation: starDriftReverse 75s linear infinite; }
+    .aurora {
+      background: linear-gradient(120deg, rgba(127, 90, 240, 0.12), rgba(44, 182, 125, 0.08), rgba(127, 90, 240, 0.12));
+      filter: blur(40px);
+      opacity: 0.4;
+      animation: auroraMove 55s linear infinite;
+      z-index: 2;
+    }
+    .dust {
+      z-index: 3;
+      display: block;
+    }
+    .dust span {
+      position: absolute;
+      width: 3px; height: 3px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.4);
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+      animation: dustFloat 18s ease-in-out infinite;
+    }
+
+    /* Top controls */
+    .toolbar {
+      position: fixed;
+      top: calc(var(--nav-spacer, 78px) + 6px);
+      right: min(24px, 4vw);
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      z-index: 9;
+    }
+    .mode-btn {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      font-weight: 700;
+    }
+    .mode-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,0.35); border-color: rgba(127, 90, 240, 0.4); }
+    .mode-btn.active { border-color: var(--green); box-shadow: 0 12px 34px rgba(44,182,125,0.35); }
+
+    /* Canvas */
+    #space {
+      position: fixed;
+      inset: 0;
+      z-index: 4;
+      background: transparent;
+      cursor: grab;
+    }
+    #space:active { cursor: grabbing; }
+
+    /* Hologram label */
+    .hover-label {
+      position: absolute;
+      padding: 6px 10px;
+      border-radius: 10px;
+      background: rgba(7, 12, 23, 0.75);
+      color: var(--text);
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+      font-size: 12px;
+      pointer-events: none;
+      transform: translate(-50%, -140%);
+      white-space: nowrap;
+      z-index: 8;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    /* Side panel */
+    .side-panel {
+      position: fixed;
+      top: var(--nav-spacer, 78px); left: 0;
+      width: min(380px, 90vw);
+      height: calc(100vh - var(--nav-spacer, 78px) - env(safe-area-inset-bottom, 0px));
+      background: rgba(5, 9, 21, 0.85);
+      border-right: 1px solid var(--border);
+      box-shadow: 20px 0 60px rgba(0,0,0,0.45);
+      backdrop-filter: blur(12px);
+      transform: translateX(-100%);
+      transition: transform 0.35s ease;
+      z-index: 11;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    .side-panel.open { transform: translateX(0); }
+    .panel-head {
+      padding: 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .cover {
+      width: 84px;
+      height: 84px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.08);
+      object-fit: cover;
+    }
+    .panel-title { margin: 0; font-size: 18px; }
+    .panel-meta { color: var(--muted); font-size: 13px; }
+    .vibe-strip {
+      height: 4px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--purple), var(--green));
+      margin: 10px 0;
+    }
+    .section {
+      padding: 16px 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .section h4 { margin: 0 0 8px; letter-spacing: 0.08em; font-size: 12px; color: var(--muted); text-transform: uppercase; }
+    .section p { margin: 4px 0; color: var(--text); font-weight: 600; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 4px 4px 0 0;
+    }
+    .close-btn {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    /* Responsive polish */
+    @media (max-width: 960px) {
+      .toolbar {
+        left: 12px;
+        right: 12px;
+        top: auto;
+        bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+        justify-content: space-between;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 8px;
+      }
+      .mode-btn {
+        flex: 1;
+        min-width: 150px;
+      }
+      .side-panel {
+        width: min(420px, 96vw);
+      }
+    }
+
+    @media (max-width: 680px) {
+      .toolbar {
+        padding: 10px 8px;
+      }
+      .mode-btn {
+        min-width: 120px;
+        padding: 10px 12px;
+      }
+      .panel-head {
+        align-items: flex-start;
+      }
+      .close-btn {
+        top: 10px;
+        right: 10px;
+      }
+      .section {
+        padding: 14px 16px;
+      }
+    }
+
+    @keyframes nebulaShift {
+      from { transform: translateY(-12px); }
+      to { transform: translateY(12px); }
+    }
+    @keyframes starDrift {
+      from { transform: translate3d(0,0,0); }
+      to { transform: translate3d(-20px, -40px, 0); }
+    }
+    @keyframes starDriftReverse {
+      from { transform: translate3d(0,0,0); }
+      to { transform: translate3d(30px, 20px, 0); }
+    }
+    @keyframes auroraMove {
+      from { transform: translateX(-6%); }
+      to { transform: translateX(6%); }
+    }
+    @keyframes dustFloat {
+      0% { transform: translateY(0) translateX(0); opacity: 0.6; }
+      50% { transform: translateY(-12px) translateX(6px); opacity: 1; }
+      100% { transform: translateY(8px) translateX(-6px); opacity: 0.5; }
+    }
+  </style>
+</head>
+<body class="fade-prep">
+  <div class="layer nebula"></div>
+  <div class="layer stars">
+    <div class="near"></div>
+    <div class="far"></div>
+  </div>
+  <div class="layer aurora"></div>
+  <div class="layer dust" id="dust-layer"></div>
+
+  <header class="nav">
+    <div class="logo">GameHub</div>
+    <nav class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="guess.html">Guess</a>
+      <a href="build.html">Build</a>
+      <a class="active" href="explore.html">Explore</a>
+    </nav>
+  </header>
+  <div class="nav-spacer"></div>
+
+  <div class="toolbar">
+    <button class="mode-btn active" data-mode="genre">Genre Map</button>
+    <button class="mode-btn" data-mode="vibe">Vibe Map</button>
+    <button class="mode-btn" data-mode="timeline">Timeline</button>
+    <button class="mode-btn" data-mode="similarity">Similarity Galaxy</button>
+  </div>
+
+  <canvas id="space"></canvas>
+  <div class="hover-label" id="hover-label"></div>
+
+  <aside class="side-panel" id="side-panel">
+    <button class="close-btn" id="close-panel">✕</button>
+    <div class="panel-head">
+      <img class="cover" id="panel-cover" src="" alt="cover"/>
+      <div>
+        <h3 class="panel-title" id="panel-title">Game Name</h3>
+        <div class="panel-meta" id="panel-meta">Year · Platforms</div>
+        <div class="vibe-strip" id="panel-vibe"></div>
+        <div id="panel-tags"></div>
+      </div>
+    </div>
+    <div id="panel-body"></div>
+  </aside>
+
+  <script src="./js/nav.js"></script>
+  <script>
+    // -----------------------------
+    // Dust motes
+    // -----------------------------
+    (function spawnDust() {
+      const dustLayer = document.getElementById("dust-layer");
+      const frag = document.createDocumentFragment();
+      const count = 40;
+      for (let i = 0; i < count; i++) {
+        const dot = document.createElement("span");
+        dot.style.left = Math.random() * 100 + "%";
+        dot.style.top = Math.random() * 100 + "%";
+        dot.style.animationDelay = `${Math.random() * 10}s`;
+        dot.style.opacity = 0.3 + Math.random() * 0.5;
+        frag.appendChild(dot);
+      }
+      dustLayer.appendChild(frag);
+    })();
+
+    // -----------------------------
+    // Placeholder backend fetch
+    // -----------------------------
+    function pickVibe(g) {
+      return g.vibe || g.overall_tone || g.overallTone || (g.vibe_tags && g.vibe_tags[0]) || (g.VibeTags && g.VibeTags[0]) || g.primary_genre || "Vibe";
+    }
+
+    function normalizeGames(list) {
+      return list.map((g) => {
+        const vibe = pickVibe(g);
+        const monthRaw = g.release_month || g.month || g.Month || g.releaseMonth;
+        const syntheticMonth = ((Math.abs([...g.name].reduce((h, c) => (h * 33 + c.charCodeAt(0)) | 0, 0)) % 12) + 1);
+        const month = Number.isFinite(monthRaw) && monthRaw >= 1 && monthRaw <= 12 ? monthRaw : syntheticMonth;
+        return {
+          ...g,
+          vibe,
+          month,
+          core_gameplay_loop: g.core_gameplay_loop || g.game_structure || g.primary_genre,
+          enemy_type: g.enemy_type || (g.enemy_types && g.enemy_types.join(", ")),
+          progression_system: g.progression_system || g.progression_type,
+          movement_system: g.movement_system || g.movement_type,
+          multiplayer_structure: g.multiplayer_structure || g.multiplayer_type || g.multiplayer_presence,
+          environment_biomes: g.environment_biomes || g.environment_type,
+          camera_ui: g.camera_ui || g.camera_view,
+          visual_style: g.visual_style,
+          animation_feel: g.animation_feel,
+          music_sound: g.music_sound || g.music_sound_direction,
+          vibe_tone: g.vibe_tone || g.overall_tone || g.overallTone || vibe,
+          protagonist_format: g.protagonist_format || g.protagonist_type,
+          narrative_themes: g.narrative_themes || (g.story_themes && g.story_themes.join(", ")),
+          emotional_intent: g.emotional_intent || g.player_emotion,
+          wildcard_twist: g.wildcard_twist || (g.special_mechanics && g.special_mechanics.join(", ")),
+        };
+      });
+    }
+
+    async function fetchAllGames() {
+      try {
+        // Use real dataset via existing explore API (genre map)
+        const res = await fetch("/api/explore/by-genre", { cache: "no-store" });
+        if (!res.ok) throw new Error("network");
+        const payload = await res.json();
+        const all = [];
+        const seen = new Set();
+        Object.values(payload || {}).forEach((arr) => {
+          (arr || []).forEach((g) => {
+            if (!seen.has(g.id)) {
+              seen.add(g.id);
+              all.push(g);
+            }
+          });
+        });
+        if (!all.length) throw new Error("empty");
+        return normalizeGames(all);
+      } catch (err) {
+        // Fallback placeholder dataset
+        const vibes = ["Calm", "Gritty", "Whimsical", "Somber"];
+        const genres = ["Action", "RPG", "Puzzle", "Adventure"];
+        const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
+        return Array.from({ length: 60 }).map((_, i) => ({
+          id: i + 1,
+          name: `Signal ${i + 1}`,
+          year: 1990 + (i % 30),
+          vibe: rand(vibes),
+          image: "",
+          primary_genre: rand(genres),
+          sub_genres: [],
+          platforms: ["PC", "Console"],
+          tags: ["Placeholder"],
+          core_gameplay_loop: "Primary loop",
+          combat_style: "Combat style",
+          movement_system: "Movement",
+          enemy_type: "Enemies",
+          progression_system: "Progression",
+          multiplayer_structure: "Multiplayer",
+          world_type: "World",
+          setting: "Setting",
+          time_period: "Era",
+          environment_biomes: "Biomes",
+          narrative_integration: "Narrative",
+          visual_style: "Visual",
+          camera_ui: "Camera/UI",
+          animation_feel: "Animation",
+          music_sound: "Music/Sound",
+          vibe_tone: "Tone",
+          protagonist_format: "Protagonist",
+          narrative_themes: "Themes",
+          emotional_intent: "Emotion",
+          wildcard_twist: "Twist",
+        }));
+      }
+    }
+
+    // -----------------------------
+    // Star map setup
+    // -----------------------------
+    const canvas = document.getElementById("space");
+    const ctx = canvas.getContext("2d");
+    let width = canvas.width = window.innerWidth;
+    let height = canvas.height = window.innerHeight;
+
+    const modes = ["genre", "vibe", "timeline", "similarity"];
+    let currentMode = "genre";
+    let stars = [];
+    let view = { x: 0, y: 0, scale: 1 };
+    let targetView = { x: 0, y: 0, scale: 1 };
+    let dragging = false;
+    let lastPos = { x: 0, y: 0 };
+    const hoverLabel = document.getElementById("hover-label");
+    let hoverStar = null;
+    let selectedStar = null;
+
+    function vibeColor(vibe) {
+      const hash = [...(vibe || "vibe")].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 0);
+      const hue = Math.abs(hash) % 360;
+      return `hsl(${hue}, 70%, 60%)`;
+    }
+
+    function layoutStars(data) {
+      const groups = {};
+      const genreGroups = {};
+      const vibeGroups = {};
+      const timeRange = { min: Infinity, max: -Infinity };
+
+      data.forEach((g) => {
+        genreGroups[g.primary_genre] = genreGroups[g.primary_genre] || [];
+        genreGroups[g.primary_genre].push(g);
+        vibeGroups[g.vibe] = vibeGroups[g.vibe] || [];
+        vibeGroups[g.vibe].push(g);
+        const tRaw = (g.year || 2000) + ((g.month || 1) - 1) / 12;
+        timeRange.min = Math.min(timeRange.min, tRaw);
+        timeRange.max = Math.max(timeRange.max, tRaw);
+      });
+
+      const positions = {};
+      const circleLayout = (items, radius = 600) => {
+        const angleStep = (Math.PI * 2) / items.length;
+        return items.map((_, i) => {
+          const angle = i * angleStep;
+          return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
+        });
+      };
+
+      // Genre clusters
+      const genreKeys = Object.keys(genreGroups);
+      const genreCenters = circleLayout(genreKeys, 600);
+      genreKeys.forEach((key, idx) => {
+        const center = genreCenters[idx];
+        genreGroups[key].forEach((g, i) => {
+          positions[`${g.id}-genre`] = {
+            x: center.x + Math.cos(i) * 80 + Math.random() * 40,
+            y: center.y + Math.sin(i) * 80 + Math.random() * 40,
+          };
+        });
+      });
+
+      // Vibe clusters
+      const vibeKeys = Object.keys(vibeGroups);
+      const vibeCenters = circleLayout(vibeKeys, 650);
+      vibeKeys.forEach((key, idx) => {
+        const center = vibeCenters[idx];
+        vibeGroups[key].forEach((g, i) => {
+          positions[`${g.id}-vibe`] = {
+            x: center.x + Math.cos(i) * 80 + Math.random() * 40,
+            y: center.y + Math.sin(i) * 80 + Math.random() * 40,
+          };
+        });
+      });
+
+      // Timeline
+      data.forEach((g, i) => {
+        const tRaw = ((g.year || 2000) + ((g.month || 1) - 1) / 12);
+        const t = (tRaw - timeRange.min) / Math.max(1, timeRange.max - timeRange.min);
+        positions[`${g.id}-timeline`] = { x: (t - 0.5) * 1400, y: Math.sin(t * Math.PI * 2) * 220 };
+      });
+
+      // Similarity (simple hash-based radial)
+      data.forEach((g, i) => {
+        const hash = [...(g.name || "game")].reduce((h, ch) => (h * 33 + ch.charCodeAt(0)) | 0, 0);
+        const angle = (Math.abs(hash) % 360) * (Math.PI / 180);
+        const radius = 200 + (Math.abs(hash) % 400);
+        positions[`${g.id}-similarity`] = { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
+      });
+
+      stars = data.map((g, idx) => {
+        const pos = positions[`${g.id}-${currentMode}`] || { x: Math.random() * 400 - 200, y: Math.random() * 400 - 200 };
+        return {
+          game: g,
+          x: pos.x,
+          y: pos.y,
+          target: { ...pos },
+          size: 3 + Math.random() * 2,
+          phase: Math.random() * Math.PI * 2,
+          color: vibeColor(g.vibe || g.vibe_tone || g.overall_tone || g.primary_genre),
+        };
+      });
+    }
+
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    }
+    window.addEventListener("resize", resize);
+
+    function transformPoint(x, y) {
+      return {
+        x: width / 2 + (x + view.x) * view.scale,
+        y: height / 2 + (y + view.y) * view.scale,
+      };
+    }
+    function inverseTransform(x, y) {
+      return {
+        x: (x - width / 2) / view.scale - view.x,
+        y: (y - height / 2) / view.scale - view.y,
+      };
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, width, height);
+      ctx.save();
+      ctx.translate(width / 2, height / 2);
+      ctx.scale(view.scale, view.scale);
+      ctx.translate(view.x, view.y);
+
+      // Constellation lines (simple nearest neighbors)
+      ctx.strokeStyle = "rgba(255,255,255,0.12)";
+      ctx.lineWidth = 0.6 / view.scale;
+      stars.forEach((s, i) => {
+        for (let j = i + 1; j < stars.length; j++) {
+          const o = stars[j];
+          const dx = s.x - o.x;
+          const dy = s.y - o.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 180) {
+            const alpha = Math.max(0, 1 - dist / 180) * 0.4;
+            ctx.strokeStyle = `rgba(127,90,240,${alpha * 0.6})`;
+            ctx.beginPath();
+            ctx.moveTo(s.x, s.y);
+            ctx.lineTo(o.x, o.y);
+            ctx.stroke();
+          }
+        }
+      });
+
+      // Stars
+      stars.forEach((s) => {
+        const pulse = Math.sin(Date.now() / 1200 + s.phase) * 0.3 + 1;
+        const r = (s.size + (hoverStar === s ? 2 : 0)) * pulse;
+        const grad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * 3);
+        grad.addColorStop(0, s.color);
+        grad.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, r * 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = s.color;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.restore();
+      requestAnimationFrame(draw);
+    }
+
+    function animateStars() {
+      stars.forEach((s) => {
+        s.x += (s.target.x - s.x) * 0.06;
+        s.y += (s.target.y - s.y) * 0.06;
+      });
+      requestAnimationFrame(animateStars);
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll(".mode-btn").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
+      stars.forEach((s) => {
+        const key = `${s.game.id}-${mode}`;
+        s.target = layouts[key] || s.target;
+      });
+    }
+
+    const layouts = {};
+    function computeLayouts(data) {
+      layoutStars(data);
+      stars.forEach((s) => {
+        layouts[`${s.game.id}-genre`] = { ...s.target };
+      });
+      const prevMode = currentMode;
+      currentMode = "vibe";
+      layoutStars(data);
+      stars.forEach((s) => {
+        layouts[`${s.game.id}-vibe`] = { ...s.target };
+      });
+      currentMode = "timeline";
+      layoutStars(data);
+      stars.forEach((s) => {
+        layouts[`${s.game.id}-timeline`] = { ...s.target };
+      });
+      currentMode = "similarity";
+      layoutStars(data);
+      stars.forEach((s) => {
+        layouts[`${s.game.id}-similarity`] = { ...s.target };
+      });
+      currentMode = prevMode;
+      layoutStars(data); // reset to initial mode positions
+    }
+
+    canvas.addEventListener("pointerdown", (e) => {
+      dragging = true;
+      lastPos = { x: e.clientX, y: e.clientY };
+    });
+    window.addEventListener("pointermove", (e) => {
+      if (dragging) {
+        const dx = (e.clientX - lastPos.x) / view.scale;
+        const dy = (e.clientY - lastPos.y) / view.scale;
+        view.x += dx;
+        view.y += dy;
+        lastPos = { x: e.clientX, y: e.clientY };
+      }
+      // Hover detection
+      const world = inverseTransform(e.clientX, e.clientY);
+      hoverStar = null;
+      for (const s of stars) {
+        const dx = s.x - world.x;
+        const dy = s.y - world.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < s.size + 6) {
+          hoverStar = s;
+          break;
+        }
+      }
+      if (hoverStar) {
+        hoverLabel.textContent = hoverStar.game.name;
+        hoverLabel.style.left = `${e.clientX}px`;
+        hoverLabel.style.top = `${e.clientY}px`;
+        hoverLabel.style.opacity = 1;
+      } else {
+        hoverLabel.style.opacity = 0;
+      }
+    });
+    window.addEventListener("pointerup", () => { dragging = false; });
+    window.addEventListener("wheel", (e) => {
+      const delta = -e.deltaY * 0.001;
+      const worldBefore = inverseTransform(e.clientX, e.clientY);
+      targetView.scale = Math.min(2.5, Math.max(0.4, view.scale * (1 + delta)));
+      const worldAfter = inverseTransform(e.clientX, e.clientY);
+      view.x += worldAfter.x - worldBefore.x;
+      view.y += worldAfter.y - worldBefore.y;
+      view.scale = targetView.scale;
+    }, { passive: true });
+
+    window.addEventListener("keydown", (e) => {
+      const speed = 12 / view.scale;
+      if (e.key === "w" || e.key === "ArrowUp") view.y += speed;
+      if (e.key === "s" || e.key === "ArrowDown") view.y -= speed;
+      if (e.key === "a" || e.key === "ArrowLeft") view.x += speed;
+      if (e.key === "d" || e.key === "ArrowRight") view.x -= speed;
+    });
+
+    canvas.addEventListener("click", (e) => {
+      const world = inverseTransform(e.clientX, e.clientY);
+      let clicked = null;
+      for (const s of stars) {
+        const dx = s.x - world.x;
+        const dy = s.y - world.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < s.size + 6) {
+          clicked = s;
+          break;
+        }
+      }
+      if (clicked) {
+        selectedStar = clicked;
+        openPanel(clicked.game);
+      }
+    });
+
+    document.querySelectorAll(".mode-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const mode = btn.dataset.mode;
+        currentMode = mode;
+        document.querySelectorAll(".mode-btn").forEach((b) => b.classList.toggle("active", b === btn));
+        stars.forEach((s) => {
+          const key = `${s.game.id}-${mode}`;
+          if (layouts[key]) s.target = { ...layouts[key] };
+        });
+      });
+    });
+
+    // -----------------------------
+    // Side panel
+    // -----------------------------
+    const sidePanel = document.getElementById("side-panel");
+    const closePanelBtn = document.getElementById("close-panel");
+    const panelCover = document.getElementById("panel-cover");
+    const panelTitle = document.getElementById("panel-title");
+    const panelMeta = document.getElementById("panel-meta");
+    const panelVibe = document.getElementById("panel-vibe");
+    const panelTags = document.getElementById("panel-tags");
+    const panelBody = document.getElementById("panel-body");
+
+    closePanelBtn.addEventListener("click", () => {
+      sidePanel.classList.remove("open");
+    });
+
+    function infoRow(label, value) {
+      return `<div><strong>${label}:</strong> ${value || "—"}</div>`;
+    }
+
+    function renderSection(title, entries) {
+      return `
+        <div class="section">
+          <h4>${title}</h4>
+          ${entries.map(e => `<p>${e.label}: ${e.value || "—"}</p>`).join("")}
+        </div>
+      `;
+    }
+
+    function openPanel(game) {
+      panelCover.src = game.image || "";
+      panelTitle.textContent = game.name || "Unknown";
+      panelMeta.textContent = `${game.year || "—"}${game.month ? " / " + game.month : ""} · ${(game.platforms || []).join(", ") || "Platforms"}`;
+      panelVibe.style.background = `linear-gradient(90deg, ${vibeColor(game.vibe)}, rgba(255,255,255,0.2))`;
+
+      panelTags.innerHTML = "";
+      (game.tags || []).forEach((t) => {
+        const pill = document.createElement("span");
+        pill.className = "pill";
+        pill.textContent = t;
+        panelTags.appendChild(pill);
+      });
+
+      const sections = [
+        {
+          title: "Core Gameplay",
+          entries: [
+          { label: "Core Gameplay Loop", value: game.core_gameplay_loop },
+          { label: "Combat Style", value: game.combat_style },
+          { label: "Movement System", value: game.movement_system },
+          { label: "Enemy/Challenge Type", value: game.enemy_type },
+          { label: "Progression & Systems", value: game.progression_system },
+          { label: "Multiplayer Structure", value: game.multiplayer_structure },
+        ],
+      },
+        {
+          title: "World & Setting",
+          entries: [
+            { label: "World Type", value: game.world_type },
+            { label: "Setting", value: game.setting },
+            { label: "Time Period", value: game.time_period },
+            { label: "Environment & Biomes", value: game.environment_biomes },
+            { label: "Narrative Integration", value: game.narrative_integration },
+          ],
+        },
+        {
+          title: "Aesthetics",
+          entries: [
+            { label: "Visual Style", value: game.visual_style },
+            { label: "Camera & UI Design", value: game.camera_ui },
+            { label: "Animation & Game Feel", value: game.animation_feel },
+            { label: "Music & Sound Direction", value: game.music_sound },
+            { label: "Vibe & Tone", value: game.vibe_tone },
+          ],
+        },
+        {
+          title: "Creative Elements",
+          entries: [
+            { label: "Protagonist Format", value: game.protagonist_format },
+            { label: "Narrative Themes", value: game.narrative_themes },
+            { label: "Emotional Intent", value: game.emotional_intent },
+            { label: "Wildcard Creative Twist", value: game.wildcard_twist },
+          ],
+        },
+      ];
+
+      panelBody.innerHTML = sections.map(s => renderSection(s.title, s.entries)).join("");
+      sidePanel.classList.add("open");
+    }
+
+    // -----------------------------
+    // Init
+    // -----------------------------
+    (async function init() {
+      resize();
+      const data = await fetchAllGames();
+      computeLayouts(data);
+      animateStars();
+      draw();
+    })();
+  </script>
+</body>
+</html>
