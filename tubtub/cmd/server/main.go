@@ -2,41 +2,39 @@ package main
 
 import (
 	"log"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
-	"mime"
 
 	"tubtub/internal/guesser"
 	"tubtub/internal/webutil"
 )
 
-
-
 func projectRoot() string {
-    candidates := []string{".", "..", "../.."}
-    dirsToCheck := []string{
-        filepath.Join("web", "hub"),
-        filepath.Join("web", "gamehub"),
-        filepath.Join("web", "guesser"),
-    }
+	candidates := []string{".", "..", "../.."}
+	dirsToCheck := []string{
+		filepath.Join("web", "hub"),
+		filepath.Join("web", "gamehub"),
+		filepath.Join("web", "guesser"),
+		filepath.Join("web", "room"),
+	}
 
-    for _, c := range candidates {
-        ok := true
-        for _, d := range dirsToCheck {
-            try := filepath.Join(c, d)
-            if _, err := os.Stat(try); err != nil {
-                ok = false
-                break
-            }
-        }
-        if ok {
-            return c
-        }
-    }
-    return "."
+	for _, c := range candidates {
+		ok := true
+		for _, d := range dirsToCheck {
+			try := filepath.Join(c, d)
+			if _, err := os.Stat(try); err != nil {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			return c
+		}
+	}
+	return "."
 }
-
 
 func main() {
 	mime.AddExtensionType(".wasm", "application/wasm")
@@ -60,7 +58,6 @@ func main() {
 		http.FileServer(http.Dir(filepath.Join(root, "web", "hub"))),
 	)
 
-
 	mux.Handle("/gamehub/",
 		http.StripPrefix("/gamehub/",
 			http.FileServer(http.Dir(filepath.Join(root, "web", "gamehub"))),
@@ -75,7 +72,6 @@ func main() {
 	mux.HandleFunc("/room", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/room/", http.StatusMovedPermanently)
 	})
-
 
 	// Make sure this folder exists for blurred images
 	os.MkdirAll(filepath.Join(root, "web", "guesser", "blur_cache"), 0755)
