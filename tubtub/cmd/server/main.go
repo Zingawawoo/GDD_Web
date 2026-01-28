@@ -37,7 +37,6 @@ func projectRoot() string {
 }
 
 func main() {
-	mime.AddExtensionType(".wasm", "application/wasm")
 	root := projectRoot()
 	log.Printf("Using project root: %s\n", root)
 
@@ -82,13 +81,6 @@ func main() {
 	mux.Handle("/api/guess/submit/", guesser.GuessSubmitHandler(idx, sessionStore))
 	mux.Handle("/api/guess/suggest", guesser.GuessSuggestHandler(idx))
 	mux.Handle("/api/guess/ticker", guesser.GuessTickerHandler(idx))
-
-	// Serve blurred image that was generated
-	mux.Handle("/api/blur/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// images stored in: web/guesser/blur_cache/<session>.jpg
-		localPath := filepath.Join(root, "web", "guesser", "blur_cache", filepath.Base(r.URL.Path))
-		http.ServeFile(w, r, localPath)
-	}))
 
 	// -----------------------------
 	// API: Dream Game Builder
