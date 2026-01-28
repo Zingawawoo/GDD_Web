@@ -157,13 +157,6 @@ body:not(.light-mode) .mode-moon {
   overflow: hidden;
 }
 
-.home-content::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.08) 45%, rgba(0, 0, 0, 0.35));
-  z-index: 2;
-}
 
 .home-bg {
   position: absolute;
@@ -176,9 +169,6 @@ body:not(.light-mode) .mode-moon {
   transition: opacity 200ms ease;
 }
 
-body.light-mode .home-content::before {
-  opacity: 0.1;
-}
 
 body.light-mode .home-bg-light {
   opacity: 1;

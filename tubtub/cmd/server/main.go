@@ -106,13 +106,6 @@ func main() {
 	mux.Handle("/api/explore/by-genre", guesser.ExploreByGenreHandler(idx))
 
 	// -----------------------------
-	// Health check
-	// -----------------------------
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("ok"))
-	})
-
-	// -----------------------------
 	// FINAL SERVER WRAP
 	// -----------------------------
 	srv := &http.Server{

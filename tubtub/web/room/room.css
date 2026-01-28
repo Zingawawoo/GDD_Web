@@ -25,6 +25,41 @@ body {
   z-index: 10;
 }
 
+.room-tab {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
+}
+
+.room-tab:hover {
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.room-tab:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 3px;
+}
+
+.room-controls-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.room-controls-panel[hidden] {
+  display: none;
+}
+
 .room-control {
   padding: 8px 14px;
   border-radius: 999px;
@@ -62,6 +97,13 @@ body {
   display: none;
 }
 
+.level-menu--resizable {
+  position: relative;
+  overflow: hidden;
+  height: 160px;
+  padding-bottom: 26px;
+}
+
 .level-option {
   padding: 8px 10px;
   border-radius: 10px;
@@ -80,6 +122,18 @@ body {
 .level-option:hover {
   border-color: rgba(255, 255, 255, 0.45);
   background: rgba(255, 255, 255, 0.08);
+}
+
+.level-menu-resize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -10px;
+  height: 16px;
+  border-radius: 999px;
+  background: transparent;
+  cursor: ns-resize;
+  touch-action: none;
 }
 
 .room {
@@ -220,6 +274,8 @@ body {
 
 .room-top {
   padding: 48px 24px;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .room-bottom {
@@ -234,11 +290,362 @@ body {
   font-size: clamp(32px, 6vw, 72px);
   letter-spacing: 0.04em;
   text-align: center;
+  display: grid;
+  gap: 16px;
 }
 
-.room-message--bottom {
-  font-size: clamp(18px, 3vw, 36px);
+.room-title {
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+}
+
+.room-subtitle {
+  font-size: clamp(14px, 1.6vw, 20px);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.75);
+  text-transform: none;
+  margin: 0 auto;
+  max-width: 760px;
+}
+
+.room-guess {
+  width: min(720px, 92vw);
+  display: grid;
+  gap: 12px;
+  text-align: center;
+}
+
+.room-guess[hidden] {
+  display: none;
+}
+
+.room-guess-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.room-guess-inputs {
+  display: grid;
+  gap: 12px;
+}
+
+.room-guess-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 16px;
+}
+
+.room-guess-input:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
+.room-guess-submit {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.room-guess-submit:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.room-guess.is-shaking {
+  animation: room-shake 320ms ease;
+}
+
+@keyframes room-shake {
+  0% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  50% {
+    transform: translateX(6px);
+  }
+  75% {
+    transform: translateX(-4px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.room-evade {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: min(180px, 22vh);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.room-evade[hidden] {
+  display: none;
+}
+
+.room-evade-button {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.room-evade-button:hover {
+  border-color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.room-sprite {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%);
+  width: 320px;
+  height: 320px;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+}
+
+.room-sprite[hidden] {
+  display: none;
+}
+
+.room-sprite-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+
+.room-tetris {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.room-tetris[hidden] {
+  display: none;
+}
+
+.tetris-piece {
+  position: absolute;
+  top: -120px;
+  width: 140px;
+  height: 140px;
+  animation: tetris-fall 1.6s ease-in forwards;
+}
+
+.tetris-block {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  background: #f2fff9;
+  border-radius: 6px;
+  box-shadow: 0 0 20px rgba(242, 255, 249, 0.35);
+}
+
+.tetris-next {
+  position: absolute;
+  top: -60px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  cursor: pointer;
+  pointer-events: auto;
+  animation: tetris-fall 2.2s linear forwards;
+}
+
+@keyframes tetris-fall {
+  0% {
+    transform: translateY(0);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(110vh);
+    opacity: 0;
+  }
+}
+
+.cookie-banner {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: end center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 30;
+  pointer-events: none;
+}
+
+.cookie-banner[hidden] {
+  display: none;
+}
+
+.cookie-stack {
+  position: relative;
+  width: min(720px, 92vw);
+  pointer-events: auto;
+}
+
+.cookie-card {
+  position: relative;
+  width: 100%;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #0a0a10;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  padding: 18px 20px 16px;
+  display: grid;
+  gap: 14px;
+  z-index: 2;
+  cursor: ew-resize;
+  pointer-events: auto;
+}
+
+.cookie-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cookie-title {
+  font-size: 16px;
   font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cookie-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cookie-close,
+.cookie-button,
+.cookie-link {
+  pointer-events: none;
+}
+
+.cookie-body {
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.cookie-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.cookie-button {
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: #fff;
+  color: #111;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.cookie-button--secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.cookie-links {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.cookie-link {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+}
+
+.cookie-link:hover {
+  color: #fff;
+}
+
+.cookie-next {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.cookie-next[hidden] {
+  display: none;
 }
 
 .survey {
