@@ -1,0 +1,43 @@
+name: Deploy to Pi
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: tubtub/go.mod
+
+      - name: Build (linux/arm64)
+        working-directory: tubtub
+        run: |
+          mkdir -p dist
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o dist/tubtub ./cmd/server
+
+      - name: Setup SSH
+        env:
+          PI_HOST: ${{ secrets.PI_HOST }}
+          PI_PORT: ${{ secrets.PI_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PI_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          PORT="${PI_PORT:-22}"
+          ssh-keyscan -p "$PORT" "$PI_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy + restart
+        env:
+          PI_HOST: ${{ secrets.PI_HOST }}
+          PI_USER: ${{ secrets.PI_USER }}
+          PI_PATH: ${{ secrets.PI_PATH }}
+          PI_PORT: ${{ secrets.PI_PORT }}
+        run: |
+          tubtub/scripts/deploy_pi.sh
