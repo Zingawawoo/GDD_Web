@@ -35,6 +35,58 @@
       canvas {
         display: block;
       }
+      .hud {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        z-index: 10;
+        display: none;
+        gap: 6px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(10, 14, 22, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #e7edf5;
+        font-size: 12px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        min-width: 160px;
+        pointer-events: none;
+      }
+      .hud .value {
+        font-family: "M12", "Upheav", "Trebuchet MS", Tahoma, sans-serif;
+        font-size: 18px;
+        letter-spacing: 2px;
+      }
+      .pause-banner {
+        position: fixed;
+        inset: 0;
+        z-index: 15;
+        display: none;
+        place-items: center;
+        background: rgba(8, 10, 16, 0.7);
+        color: #f5d36a;
+        font-size: 22px;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        text-shadow: 0 0 12px rgba(245, 211, 106, 0.6);
+      }
+      .pause-banner.active {
+        display: grid;
+      }
+      .pause-panel {
+        display: grid;
+        gap: 14px;
+        text-align: center;
+      }
+      .pause-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+      }
+      .pause-actions .ghost-btn {
+        min-width: 120px;
+      }
       .screen {
         position: fixed;
         inset: 0;
@@ -158,6 +210,12 @@
         border-color: #f5d36a;
         box-shadow: 0 0 0 2px rgba(245, 211, 106, 0.3);
       }
+      .map-card.disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        border-style: dashed;
+        box-shadow: none;
+      }
       .grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -218,7 +276,7 @@
       <div class="panel">
         <h1>Rules</h1>
         <div class="subtitle">
-          W/S accelerate/reverse · A/D steer · Space handbrake · Shift hop
+          W/S accelerate/reverse &middot; A/D steer &middot; Space handbrake &middot; Shift hop &middot; R restart &middot; Esc pause
         </div>
         <button class="ghost-btn" id="rules-back">Back</button>
       </div>
@@ -251,15 +309,33 @@
       <div class="panel">
         <h1>Map Select</h1>
         <div class="grid" id="map-grid">
-          <div class="map-card active" data-map="grid">Grid Loop</div>
-          <div class="map-card" data-map="oval">Oval Sprint</div>
-          <div class="map-card" data-map="switchback">Switchback</div>
+          <div class="map-card active" data-map="tiled">Stardew</div>
         </div>
         <button class="start-btn" id="map-continue">Start Race</button>
         <button class="ghost-btn" id="map-back">Back</button>
       </div>
     </div>
+    <div class="hud" id="hud">
+      <div>Map</div>
+      <div class="value" id="hud-map">Grid Loop</div>
+      <div>Timer</div>
+      <div class="value" id="hud-timer">0:00.0</div>
+      <div>Best</div>
+      <div class="value" id="hud-best">--</div>
+      <div>Speed</div>
+      <div class="value" id="hud-speed">0</div>
+    </div>
+    <div class="pause-banner" id="pause-banner">
+      <div class="pause-panel">
+        <div>Paused</div>
+        <div class="pause-actions">
+          <button class="start-btn" id="pause-resume">Resume</button>
+          <button class="ghost-btn" id="pause-quit">Quit</button>
+        </div>
+      </div>
+    </div>
     <div id="game"></div>
-    <script src="main.js"></script>
+    <script type="module" src="main.js"></script>
   </body>
 </html>
+

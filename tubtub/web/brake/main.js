@@ -1,6 +1,11 @@
-/* global Phaser */
+import { CAR_CATALOG, COLOR_SWATCHES } from "./js/cars.js";
+import { BEST_TIME_KEY, FRAME_COUNT, HOP, PHYSICS, TILEMAP_CONFIG, WORLD } from "./js/config.js";
+import { MAPS, getMap } from "./js/maps.js";
+import { moveTowards } from "./js/utils.js";
+import { createTiledState, hideTiledMap, isOnDrivableLayer, isOnWallLayer, setupTiledMap, updateTiledAvailability } from "./js/tiled.js";
+import { buildCarGrid, highlightCards, initUI, renderCardPreviews, renderSwatches, setHudVisible, updateHud, updateMapCards, updatePreview, wireMenu, wirePause } from "./js/ui.js";
 
-const config = {
+const gameConfig = {
   type: Phaser.AUTO,
   parent: "game",
   width: 1280,
@@ -21,240 +26,68 @@ const config = {
   },
 };
 
-const COLOR_SWATCHES = {
-  Blue: "#4aa8ff",
-  Black: "#20242c",
-  Brown: "#8b5a3c",
-  Green: "#49c46a",
-  Magenta: "#e34b9a",
-  Red: "#f05454",
-  White: "#e9edf2",
-  Yellow: "#f2cc4d",
-  Default: "#9aa3ad",
-};
+new Phaser.Game(gameConfig);
 
-const SHARED_COLORS = ["Blue", "Black", "Brown", "Green", "Magenta", "Red", "White", "Yellow"];
-
-const CAR_CATALOG = [
-  {
-    id: "sport",
-    label: "Sport",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/SPORT TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_SPORT_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "supercar",
-    label: "Supercar",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/SUPERCAR TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_SUPERCAR_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "musclecar",
-    label: "Musclecar",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/MUSCLECAR TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_MUSCLECAR_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "luxury",
-    label: "Luxury",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/LUXURY TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_LUXURY_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "limo",
-    label: "Limo",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/LIMO TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_LIMO_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "coupe",
-    label: "Coupe",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/COUPE TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_COUPE_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "civic",
-    label: "Civic",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/CIVIC TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_CIVIC_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "sedan",
-    label: "Sedan",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/SEDAN TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_SEDAN_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "hatchback",
-    label: "Hatchback",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/HATCHBACK TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_HatchBack_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "micro",
-    label: "Micro",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/MICRO TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_MICRO_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "suv",
-    label: "SUV",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/SUV TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_SUV_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "jeep",
-    label: "Jeep",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/JEEP TOP DOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_JEEP_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "van",
-    label: "Van",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/VAN TOP DOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_VAN_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "minivan",
-    label: "Minivan",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/MINIVAN TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_MINIVAN_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "wagon",
-    label: "Wagon",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/WAGON TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_WAGON_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "pickup",
-    label: "Pickup",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/PICKUP TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_PICKUP_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "camper",
-    label: "Camper",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/CAMPER TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_CAMPER_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "box_truck",
-    label: "Box Truck",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/BOX TRUCK TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_BOXTRUCK_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "medium_truck",
-    label: "Medium Truck",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/MEDIUM TRUCK TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) => `${color}_MEDIUMTRUCK_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "bus",
-    label: "Bus",
-    colors: SHARED_COLORS,
-    path: (color) => `Assets/BUS TOPDOWN/${color}/SEPARATED`,
-    file: (color, index) =>
-      color === "Blue" ? `BUS_CLEAN_ALLD${pad4(index)}.png` : `${color}_BUS_CLEAN_All_${pad3(index)}.png`,
-  },
-  {
-    id: "taxi",
-    label: "Taxi",
-    colors: ["Default"],
-    path: () => "Assets/TAXI TOPDOWN/ALL DIRECTION/SEPARATED",
-    file: (_, index) => `TAXI_CLEAN_ALLD${pad4(index)}.png`,
-  },
-  {
-    id: "ambulance",
-    label: "Ambulance",
-    colors: ["Default"],
-    path: () => "Assets/AMBULANCE TOPDOWN/ALL DIRECTION/SEPARATED",
-    file: (_, index) => `AMBULANCE_CLEAN_ALLD${pad4(index)}.png`,
-  },
-  {
-    id: "police",
-    label: "Police",
-    colors: ["Default"],
-    path: () => "Assets/POLICE TOPDOWN/ALL DIRECTION/SEPARATED",
-    file: (_, index) => `POLICE_CLEAN_ALLD${pad4(index)}.png`,
-  },
-];
-
-new Phaser.Game(config);
-
-const WORLD_WIDTH = 2400;
-const WORLD_HEIGHT = 1800;
-const ACCEL_FWD = 380;
-const ACCEL_REV = 320;
-const MAX_SPEED_FWD = 800;
-const MAX_SPEED_REV = 240;
-const GROUND_FRICTION = 300;
-const HANDBRAKE_FRICTION = 1400;
-const TURN_RATE_MAX = 4.0;
-const TURN_RATE_MIN = 2.0;
-const HOP_HEIGHT = 22;
-const HOP_DURATION = 220;
-const HOP_SCALE = 1.08;
+const {
+  ACCEL_FWD,
+  ACCEL_REV,
+  MAX_SPEED_FWD,
+  MAX_SPEED_REV,
+  GROUND_FRICTION,
+  HANDBRAKE_FRICTION,
+  OFFTRACK_FRICTION,
+  OFFTRACK_SPEED_CAP,
+  OFFTRACK_SPEED_RATIO,
+  TURN_RATE_MAX,
+  TURN_RATE_MIN,
+} = PHYSICS;
 
 let car;
 let cursors;
 let mapLayer;
-let pos = { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 };
+let pos = { x: WORLD.width / 2, y: WORLD.height / 2 };
 let heading = 0;
 let speed = 0;
 let hopUntil = 0;
 let currentCar = CAR_CATALOG[0];
 let currentColor = currentCar.colors[0];
 let needsCarSwap = false;
-let swatchWrap;
-let carGrid;
-let previewImage;
-let previewName;
-let characterContinue;
-let characterBack;
-let splashContinue;
-let menuPlay;
-let menuRules;
-let menuCharacter;
-let menuMap;
-let rulesBack;
-let mapBack;
-let mapContinue;
-let mapGrid;
-let screens = {};
-let selectedMap = "grid";
+let selectedMap = "tiled";
+let currentMap = MAPS.tiled;
 let gameActive = false;
+let paused = false;
+let pauseKey;
+let restartKey;
+let raceStart = 0;
+let raceTime = 0;
+let bestTimes = {};
+let worldWidth = WORLD.width;
+let worldHeight = WORLD.height;
+let useTiledMap = false;
 
-const frameCount = 48;
+const tiledState = createTiledState();
+let ui;
 
 function preload() {
   loadCarFrames(this, currentCar, currentColor);
+
+  // Reset loader path after loading car frames so map assets resolve from root.
+  this.load.setPath("");
+  this.load.tilemapTiledJSON(TILEMAP_CONFIG.key, TILEMAP_CONFIG.json);
+  TILEMAP_CONFIG.tilesets.forEach((tileset) => {
+    this.load.image(tileset.imageKey, tileset.imagePath);
+  });
 }
 
 function create() {
-  this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+  this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
 
-  drawMap(this);
+  updateTiledAvailability(this, tiledState, TILEMAP_CONFIG);
+  ui = initUI();
+  updateMapCards(ui, tiledState.available, () => selectFallbackMap());
+
+  currentMap = getMap(selectedMap, tiledState.available);
+  drawMap(this, currentMap);
 
   car = this.add.image(pos.x, pos.y, frameKey(currentCar.id, currentColor, 0));
   car.setDepth(1);
@@ -272,37 +105,38 @@ function create() {
     drift: Phaser.Input.Keyboard.KeyCodes.SHIFT,
   });
 
-  swatchWrap = document.getElementById("color-swatches");
-  carGrid = document.getElementById("car-grid");
-  previewImage = document.getElementById("preview-image");
-  previewName = document.getElementById("preview-name");
-  characterContinue = document.getElementById("character-continue");
-  characterBack = document.getElementById("character-back");
-  splashContinue = document.getElementById("splash-continue");
-  menuPlay = document.getElementById("menu-play");
-  menuRules = document.getElementById("menu-rules");
-  menuCharacter = document.getElementById("menu-character");
-  menuMap = document.getElementById("menu-map");
-  rulesBack = document.getElementById("rules-back");
-  mapBack = document.getElementById("map-back");
-  mapContinue = document.getElementById("map-continue");
-  mapGrid = document.getElementById("map-grid");
-  screens = {
-    splash: document.getElementById("splash-screen"),
-    menu: document.getElementById("menu-screen"),
-    rules: document.getElementById("rules-screen"),
-    character: document.getElementById("character-screen"),
-    map: document.getElementById("map-screen"),
-  };
-  buildCarGrid();
-  renderSwatches();
-  updatePreview();
-  renderCardPreviews();
+  buildCarGrid(ui, CAR_CATALOG, currentCar, (entry) => {
+    currentCar = entry;
+    currentColor = currentCar.colors[0];
+    needsCarSwap = true;
+    updatePreview(ui, currentCar, currentColor);
+    renderSwatches(ui, currentCar.colors, currentColor, COLOR_SWATCHES, handleColorSelect);
+    highlightCards(ui, currentCar);
+    renderCardPreviews(ui);
+  });
+  renderSwatches(ui, currentCar.colors, currentColor, COLOR_SWATCHES, handleColorSelect);
+  updatePreview(ui, currentCar, currentColor);
+  renderCardPreviews(ui);
 
-  wireMenu();
+  bestTimes = loadBestTimes();
+  setHudVisible(ui, false);
+  wirePause(ui, {
+    onResume: () => setPaused(false),
+    onQuit: () => showScreen("menu"),
+  });
 
-  this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+  wireMenu(ui, {
+    showScreen,
+    startRace,
+    onMapSelect: (mapId, card) => selectMap(mapId, card),
+  });
+
+  this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
+  this.cameras.main.setZoom(1.25);
   this.cameras.main.startFollow(car, true, 0.1, 0.1);
+
+  pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+  restartKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
 }
 
 function update(_, dtMs) {
@@ -312,7 +146,14 @@ function update(_, dtMs) {
     needsCarSwap = false;
     swapCar(this);
   }
-  if (!gameActive) return;
+
+  if (gameActive && Phaser.Input.Keyboard.JustDown(pauseKey)) {
+    setPaused(!paused);
+  }
+  if (gameActive && Phaser.Input.Keyboard.JustDown(restartKey)) {
+    resetRace();
+  }
+  if (!gameActive || paused) return;
 
   const throttle = cursors.up.isDown || cursors.upArrow.isDown;
   const reverse = cursors.down.isDown || cursors.downArrow.isDown;
@@ -333,10 +174,27 @@ function update(_, dtMs) {
 
   if (driftPressed) {
     speed *= 0.9;
-    hopUntil = performance.now() + HOP_DURATION;
+    hopUntil = performance.now() + HOP.DURATION;
   }
 
-  speed = Phaser.Math.Clamp(speed, -MAX_SPEED_REV, MAX_SPEED_FWD);
+  const onTrack = useTiledMap
+    ? isOnDrivableLayer(tiledState, pos.x, pos.y)
+    : (currentMap?.onTrack ? currentMap.onTrack(pos.x, pos.y) : true);
+
+  let maxSpeed = MAX_SPEED_FWD;
+  if (!onTrack) {
+    const offCapFwd = Math.min(MAX_SPEED_FWD * OFFTRACK_SPEED_RATIO, OFFTRACK_SPEED_CAP);
+    const offCapRev = Math.min(MAX_SPEED_REV * OFFTRACK_SPEED_RATIO, OFFTRACK_SPEED_CAP * 0.6);
+    if (speed > offCapFwd) {
+      speed = moveTowards(speed, offCapFwd, OFFTRACK_FRICTION * dt);
+    } else if (speed < -offCapRev) {
+      speed = moveTowards(speed, -offCapRev, OFFTRACK_FRICTION * dt);
+    }
+    maxSpeed = offCapFwd;
+    speed = Phaser.Math.Clamp(speed, -offCapRev, maxSpeed);
+  }
+
+  speed = Phaser.Math.Clamp(speed, -MAX_SPEED_REV, maxSpeed);
 
   const hop = hopState();
 
@@ -350,133 +208,177 @@ function update(_, dtMs) {
 
   const vx = Math.cos(heading) * speed;
   const vy = Math.sin(heading) * speed;
-  pos.x = Phaser.Math.Clamp(pos.x + vx * dt, 0, WORLD_WIDTH);
-  pos.y = Phaser.Math.Clamp(pos.y + vy * dt, 0, WORLD_HEIGHT);
+  const nextX = Phaser.Math.Clamp(pos.x + vx * dt, 0, worldWidth);
+  const nextY = Phaser.Math.Clamp(pos.y + vy * dt, 0, worldHeight);
+  if (useTiledMap && isOnWallLayer(tiledState, nextX, nextY)) {
+    // Soft wall nudge: damp speed and push slightly away instead of flipping.
+    speed = moveTowards(speed, 0, OFFTRACK_FRICTION * dt);
+    pos.x = Phaser.Math.Clamp(pos.x - vx * dt * 0.6, 0, worldWidth);
+    pos.y = Phaser.Math.Clamp(pos.y - vy * dt * 0.6, 0, worldHeight);
+  } else {
+    pos.x = nextX;
+    pos.y = nextY;
+  }
   car.setPosition(pos.x, pos.y - hop.offset);
-  car.setScale(1 + (HOP_SCALE - 1) * hop.strength);
+  car.setScale(1 + (HOP.SCALE - 1) * hop.strength);
 
   updateCarFrame(heading);
+
+  raceTime = performance.now() - raceStart;
+  updateHud(ui, {
+    mapName: currentMap?.name,
+    timeMs: raceTime,
+    bestMs: currentMap ? bestTimes[currentMap.id] : null,
+    speed,
+  });
 }
 
-function wireMenu() {
-  if (splashContinue) splashContinue.addEventListener("click", () => showScreen("menu"));
-  if (menuPlay) menuPlay.addEventListener("click", () => showScreen("map"));
-  if (menuRules) menuRules.addEventListener("click", () => showScreen("rules"));
-  if (menuCharacter) menuCharacter.addEventListener("click", () => showScreen("character"));
-  if (menuMap) menuMap.addEventListener("click", () => showScreen("map"));
-  if (rulesBack) rulesBack.addEventListener("click", () => showScreen("menu"));
-  if (characterBack) characterBack.addEventListener("click", () => showScreen("menu"));
-  if (characterContinue) characterContinue.addEventListener("click", () => showScreen("map"));
-  if (mapBack) mapBack.addEventListener("click", () => showScreen("menu"));
-  if (mapContinue) mapContinue.addEventListener("click", () => startRace());
-
-  if (mapGrid) {
-    mapGrid.addEventListener("click", (event) => {
-      const card = event.target.closest(".map-card");
-      if (!card) return;
-      selectedMap = card.dataset.map || "grid";
-      [...mapGrid.children].forEach((child) => child.classList.remove("active"));
-      card.classList.add("active");
-    });
+function selectMap(mapId, card) {
+  selectedMap = mapId;
+  currentMap = getMap(selectedMap, tiledState.available);
+  if (ui.mapGrid) {
+    [...ui.mapGrid.children].forEach((child) => child.classList.remove("active"));
   }
+  card.classList.add("active");
+  updateHud(ui, {
+    mapName: currentMap?.name,
+    timeMs: raceTime,
+    bestMs: currentMap ? bestTimes[currentMap.id] : null,
+    speed,
+  });
+}
+
+function selectFallbackMap() {
+  selectedMap = "tiled";
+  const fallback = ui.mapGrid?.querySelector("[data-map=\"tiled\"]");
+  if (fallback) fallback.classList.add("active");
 }
 
 function showScreen(name) {
-  Object.entries(screens).forEach(([key, el]) => {
+  Object.entries(ui.screens).forEach(([key, el]) => {
     if (!el) return;
     el.classList.toggle("hidden", key !== name);
   });
   gameActive = false;
+  setPaused(false);
+  setHudVisible(ui, false);
 }
 
 function startRace() {
-  Object.values(screens).forEach((el) => el && el.classList.add("hidden"));
+  Object.values(ui.screens).forEach((el) => el && el.classList.add("hidden"));
+  currentMap = getMap(selectedMap, tiledState.available);
   gameActive = true;
+  setPaused(false);
+  setHudVisible(ui, true);
   swapCar(car.scene);
-  drawMap(car.scene);
+  drawMap(car.scene, currentMap);
   car.setDepth(1);
+  resetRace(true);
 }
 
-function buildCarGrid() {
-  if (!carGrid) return;
-  carGrid.innerHTML = "";
-  CAR_CATALOG.forEach((entry) => {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "car-card";
-    if (entry.id === currentCar.id) card.classList.add("active");
-    const img = document.createElement("img");
-    img.alt = entry.label;
-    img.dataset.src = previewUrl(entry, entry.colors[0], 0);
-    img.src = "";
-    const name = document.createElement("div");
-    name.className = "name";
-    name.textContent = entry.label;
-    card.appendChild(img);
-    card.appendChild(name);
-    card.addEventListener("click", () => {
-      currentCar = entry;
-      currentColor = currentCar.colors[0];
-      needsCarSwap = true;
-      updatePreview();
-      renderSwatches();
-      highlightCards();
-      renderCardPreviews();
-    });
-    carGrid.appendChild(card);
+function setPaused(value) {
+  paused = value;
+  if (ui.pauseBanner) ui.pauseBanner.classList.toggle("active", paused);
+}
+
+function resetRace(skipBest) {
+  if (!currentMap) return;
+  if (!skipBest) recordBestTime();
+  const spawn = useTiledMap
+    ? (tiledState.drivableSpawn || { x: worldWidth / 2, y: worldHeight / 2, heading: 0 })
+    : (currentMap.spawn || { x: WORLD.width / 2, y: WORLD.height / 2, heading: 0 });
+
+  pos = { x: spawn.x, y: spawn.y };
+  heading = spawn.heading || 0;
+  speed = 0;
+  hopUntil = 0;
+  raceStart = performance.now();
+  raceTime = 0;
+  if (car) {
+    car.setPosition(pos.x, pos.y);
+    car.setScale(1);
+    updateCarFrame(heading);
+  }
+  updateHud(ui, {
+    mapName: currentMap?.name,
+    timeMs: raceTime,
+    bestMs: currentMap ? bestTimes[currentMap.id] : null,
+    speed,
   });
 }
 
-function renderSwatches() {
-  if (!swatchWrap) return;
-  swatchWrap.innerHTML = "";
-  currentCar.colors.forEach((color) => {
-    const swatch = document.createElement("button");
-    swatch.type = "button";
-    swatch.className = "swatch";
-    if (color === currentColor) swatch.classList.add("active");
-    swatch.style.background = COLOR_SWATCHES[color] || "#8f99a3";
-    swatch.title = color;
-    swatch.addEventListener("click", () => {
-      if (color === currentColor) return;
-      currentColor = color;
-      needsCarSwap = true;
-      renderSwatches();
-      updatePreview();
-    });
-    swatchWrap.appendChild(swatch);
-  });
+function loadBestTimes() {
+  try {
+    const raw = localStorage.getItem(BEST_TIME_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") return parsed;
+  } catch (err) {
+    console.warn("Failed to load best times", err);
+  }
+  return {};
 }
 
-function highlightCards() {
-  if (!carGrid) return;
-  [...carGrid.children].forEach((child) => {
-    child.classList.toggle("active", child.querySelector(".name")?.textContent === currentCar.label);
-  });
+function saveBestTimes() {
+  try {
+    localStorage.setItem(BEST_TIME_KEY, JSON.stringify(bestTimes));
+  } catch (err) {
+    console.warn("Failed to save best times", err);
+  }
 }
 
-function updatePreview() {
-  if (previewName) previewName.textContent = currentCar.label;
-  if (previewImage) previewImage.src = previewUrl(currentCar, currentColor, 0);
+function recordBestTime() {
+  if (!currentMap || raceTime <= 0) return;
+  const currentBest = bestTimes[currentMap.id];
+  if (!currentBest || raceTime < currentBest) {
+    bestTimes[currentMap.id] = raceTime;
+    saveBestTimes();
+  }
 }
 
-function renderCardPreviews() {
-  if (!carGrid) return;
-  [...carGrid.children].forEach((child) => {
-    const img = child.querySelector("img");
-    const isActive = child.classList.contains("active");
-    if (!img) return;
-    if (isActive) {
-      img.src = img.dataset.src || "";
-    } else {
-      img.src = "";
+function hopState() {
+  if (!hopUntil) return { offset: 0, strength: 0 };
+  const now = performance.now();
+  const t = 1 - Math.max(0, (hopUntil - now) / HOP.DURATION);
+  if (t >= 1) {
+    hopUntil = 0;
+    return { offset: 0, strength: 0 };
+  }
+  const strength = Math.sin(t * Math.PI);
+  return { offset: strength * HOP.HEIGHT, strength };
+}
+
+function drawMap(scene, map) {
+  useTiledMap = map?.id === "tiled";
+  if (useTiledMap) {
+    const result = setupTiledMap(scene, tiledState, TILEMAP_CONFIG);
+    if (result.ok) {
+      worldWidth = result.width;
+      worldHeight = result.height;
+      scene.physics.world.setBounds(0, 0, worldWidth, worldHeight);
+      scene.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
+      if (mapLayer) mapLayer.destroy();
+      return;
     }
-  });
+    useTiledMap = false;
+  }
+
+  hideTiledMap(tiledState);
+  if (mapLayer) mapLayer.destroy();
+  const g = scene.add.graphics();
+  mapLayer = g;
+  mapLayer.setDepth(0);
+  const drawMapFn = map?.draw || MAPS.grid.draw;
+  drawMapFn(g);
+  worldWidth = WORLD.width;
+  worldHeight = WORLD.height;
+  scene.physics.world.setBounds(0, 0, worldWidth, worldHeight);
+  scene.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
 }
 
 function loadCarFrames(scene, entry, color) {
   scene.load.setPath(entry.path(color));
-  for (let i = 0; i < frameCount; i += 1) {
+  for (let i = 0; i < FRAME_COUNT; i += 1) {
     scene.load.image(frameKey(entry.id, color, i), entry.file(color, i));
   }
 }
@@ -499,7 +401,7 @@ function updateCarFrame(angle) {
   }
   const full = Math.PI * 2;
   const normalized = (angle + full) % full;
-  const index = Math.round((normalized / full) * frameCount) % frameCount;
+  const index = Math.round((normalized / full) * FRAME_COUNT) % FRAME_COUNT;
   const key = frameKey(currentCar.id, currentColor, index);
   if (car.scene.textures.exists(key)) {
     car.setTexture(key);
@@ -510,84 +412,10 @@ function frameKey(type, color, index) {
   return `car-${type}-${color}-${index}`;
 }
 
-function previewUrl(entry, color, index) {
-  return `${entry.path(color)}/${entry.file(color, index)}`;
-}
-
-function pad3(value) {
-  return String(value).padStart(3, "0");
-}
-
-function pad4(value) {
-  return String(value).padStart(4, "0");
-}
-
-function moveTowards(current, target, maxDelta) {
-  if (Math.abs(target - current) <= maxDelta) return target;
-  return current + Math.sign(target - current) * maxDelta;
-}
-
-function hopState() {
-  if (!hopUntil) return { offset: 0, strength: 0 };
-  const now = performance.now();
-  const t = 1 - Math.max(0, (hopUntil - now) / HOP_DURATION);
-  if (t >= 1) {
-    hopUntil = 0;
-    return { offset: 0, strength: 0 };
-  }
-  const strength = Math.sin(t * Math.PI);
-  return { offset: strength * HOP_HEIGHT, strength };
-}
-
-function drawMap(scene) {
-  if (!scene) return;
-  if (mapLayer) mapLayer.destroy();
-  const g = scene.add.graphics();
-  mapLayer = g;
-  mapLayer.setDepth(0);
-
-  g.fillStyle(0x151b23, 1);
-  g.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-
-  if (selectedMap === "oval") {
-    g.lineStyle(10, 0x2f3947, 1);
-    g.strokeEllipse(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, WORLD_WIDTH - 300, WORLD_HEIGHT - 600);
-    g.lineStyle(6, 0xf5d36a, 1);
-    g.strokeEllipse(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, WORLD_WIDTH - 500, WORLD_HEIGHT - 800);
-    return;
-  }
-
-  if (selectedMap === "switchback") {
-    g.lineStyle(6, 0x2f3947, 1);
-    g.strokeRect(140, 140, WORLD_WIDTH - 280, WORLD_HEIGHT - 280);
-    g.lineStyle(6, 0xf5d36a, 1);
-    g.beginPath();
-    g.moveTo(220, 260);
-    g.lineTo(WORLD_WIDTH - 220, 260);
-    g.lineTo(WORLD_WIDTH - 220, WORLD_HEIGHT - 260);
-    g.lineTo(220, WORLD_HEIGHT - 260);
-    g.strokePath();
-    return;
-  }
-
-  g.lineStyle(6, 0x2f3947, 1);
-  g.strokeRect(120, 120, WORLD_WIDTH - 240, WORLD_HEIGHT - 240);
-  g.strokeRect(520, 340, WORLD_WIDTH - 1040, WORLD_HEIGHT - 680);
-
-  g.lineStyle(2, 0x3f4b5c, 1);
-  for (let x = 120; x <= WORLD_WIDTH - 120; x += 160) {
-    g.beginPath();
-    g.moveTo(x, 120);
-    g.lineTo(x, WORLD_HEIGHT - 120);
-    g.strokePath();
-  }
-  for (let y = 120; y <= WORLD_HEIGHT - 120; y += 160) {
-    g.beginPath();
-    g.moveTo(120, y);
-    g.lineTo(WORLD_WIDTH - 120, y);
-    g.strokePath();
-  }
-
-  g.lineStyle(8, 0xf5d36a, 1);
-  g.strokeRect(200, 200, WORLD_WIDTH - 400, WORLD_HEIGHT - 400);
+function handleColorSelect(color) {
+  if (color === currentColor) return;
+  currentColor = color;
+  needsCarSwap = true;
+  renderSwatches(ui, currentCar.colors, currentColor, COLOR_SWATCHES, handleColorSelect);
+  updatePreview(ui, currentCar, currentColor);
 }
