@@ -23,6 +23,7 @@ export function initUI() {
     hudTimer: document.getElementById("hud-timer"),
     hudBest: document.getElementById("hud-best"),
     hudSpeed: document.getElementById("hud-speed"),
+    hudDrift: document.getElementById("hud-drift"),
     pauseBanner: document.getElementById("pause-banner"),
     pauseResume: document.getElementById("pause-resume"),
     pauseQuit: document.getElementById("pause-quit"),
@@ -135,12 +136,19 @@ export function updateHud(ui, data) {
   ui.hudBest.textContent = data.bestMs ? formatTime(data.bestMs) : "--";
 }
 
-export function updateMapCards(ui, tiledAvailable, onFallback) {
+export function setDriftState(ui, active) {
+  if (!ui.hudDrift) return;
+  ui.hudDrift.textContent = active ? "On" : "Off";
+  ui.hudDrift.classList.toggle("drift-on", active);
+}
+
+export function updateMapCards(ui, availability, onFallback) {
   if (!ui.mapGrid) return;
   [...ui.mapGrid.children].forEach((child) => {
-    if (child.dataset.map !== "tiled") return;
-    child.classList.toggle("disabled", !tiledAvailable);
-    if (!tiledAvailable && child.classList.contains("active")) {
+    const mapId = child.dataset.map;
+    const isAvailable = availability?.[mapId] !== false;
+    child.classList.toggle("disabled", !isAvailable);
+    if (!isAvailable && child.classList.contains("active")) {
       child.classList.remove("active");
       if (onFallback) onFallback();
     }

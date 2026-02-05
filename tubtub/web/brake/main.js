@@ -1,9 +1,9 @@
 import { CAR_CATALOG, COLOR_SWATCHES } from "./js/cars.js";
-import { BEST_TIME_KEY, FRAME_COUNT, HOP, PHYSICS, TILEMAP_CONFIG, WORLD } from "./js/config.js";
+import { BEST_TIME_KEY, FRAME_COUNT, HOP, PHYSICS, TILEMAPS, WORLD } from "./js/config.js";
 import { MAPS, getMap } from "./js/maps.js";
 import { moveTowards } from "./js/utils.js";
-import { createTiledState, hideTiledMap, isOnDrivableLayer, isOnWallLayer, setupTiledMap, updateTiledAvailability } from "./js/tiled.js";
-import { buildCarGrid, highlightCards, initUI, renderCardPreviews, renderSwatches, setHudVisible, updateHud, updateMapCards, updatePreview, wireMenu, wirePause } from "./js/ui.js";
+import { createTiledState, hideTiledMap, isOnDrivableLayer, isOnWallLayer, isTiledAvailable, setupTiledMap } from "./js/tiled.js";
+import { buildCarGrid, highlightCards, initUI, renderCardPreviews, renderSwatches, setDriftState, setHudVisible, updateHud, updateMapCards, updatePreview, wireMenu, wirePause } from "./js/ui.js";
 
 const gameConfig = {
   type: Phaser.AUTO,
@@ -35,11 +35,27 @@ const {
   MAX_SPEED_REV,
   GROUND_FRICTION,
   HANDBRAKE_FRICTION,
+  HIGH_SPEED_DRAG,
+  HIGH_SPEED_DRAG_START,
   OFFTRACK_FRICTION,
+  OFFTRACK_DRAG,
   OFFTRACK_SPEED_CAP,
   OFFTRACK_SPEED_RATIO,
   TURN_RATE_MAX,
   TURN_RATE_MIN,
+  TRACTION_DRAG,
+  TRACTION_LOSS,
+  TRACTION_SPEED_MIN,
+  DRIFT_ALIGN_RATE,
+  DRIFT_BOOST_LARGE,
+  DRIFT_BOOST_MED,
+  DRIFT_BOOST_SMALL,
+  DRIFT_CHARGE_LARGE,
+  DRIFT_CHARGE_MED,
+  DRIFT_CHARGE_RATE,
+  DRIFT_MIN_SPEED,
+  DRIFT_TURN_BONUS,
+  NORMAL_ALIGN_RATE,
 } = PHYSICS;
 
 let car;
@@ -47,13 +63,14 @@ let cursors;
 let mapLayer;
 let pos = { x: WORLD.width / 2, y: WORLD.height / 2 };
 let heading = 0;
+let moveAngle = 0;
 let speed = 0;
 let hopUntil = 0;
 let currentCar = CAR_CATALOG[0];
 let currentColor = currentCar.colors[0];
 let needsCarSwap = false;
-let selectedMap = "tiled";
-let currentMap = MAPS.tiled;
+let selectedMap = "stardew";
+let currentMap = MAPS.stardew;
 let gameActive = false;
 let paused = false;
 let pauseKey;
@@ -64,6 +81,10 @@ let bestTimes = {};
 let worldWidth = WORLD.width;
 let worldHeight = WORLD.height;
 let useTiledMap = false;
+let drifting = false;
+let driftCharge = 0;
+let wasDrifting = false;
+let tiledAvailability = {};
 
 const tiledState = createTiledState();
 let ui;
@@ -73,20 +94,25 @@ function preload() {
 
   // Reset loader path after loading car frames so map assets resolve from root.
   this.load.setPath("");
-  this.load.tilemapTiledJSON(TILEMAP_CONFIG.key, TILEMAP_CONFIG.json);
-  TILEMAP_CONFIG.tilesets.forEach((tileset) => {
-    this.load.image(tileset.imageKey, tileset.imagePath);
+  Object.values(TILEMAPS).forEach((config) => {
+    this.load.tilemapTiledJSON(config.key, config.json);
+    config.tilesets.forEach((tileset) => {
+      this.load.image(tileset.imageKey, tileset.imagePath);
+    });
   });
 }
 
 function create() {
   this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
 
-  updateTiledAvailability(this, tiledState, TILEMAP_CONFIG);
+  tiledAvailability = Object.values(TILEMAPS).reduce((acc, config) => {
+    acc[config.id] = isTiledAvailable(this, config);
+    return acc;
+  }, {});
   ui = initUI();
-  updateMapCards(ui, tiledState.available, () => selectFallbackMap());
+  updateMapCards(ui, tiledAvailability, () => selectFallbackMap());
 
-  currentMap = getMap(selectedMap, tiledState.available);
+  currentMap = getMap(selectedMap, tiledAvailability);
   drawMap(this, currentMap);
 
   car = this.add.image(pos.x, pos.y, frameKey(currentCar.id, currentColor, 0));
@@ -159,22 +185,48 @@ function update(_, dtMs) {
   const reverse = cursors.down.isDown || cursors.downArrow.isDown;
   const handbrake = cursors.handbrake.isDown;
   const driftPressed = Phaser.Input.Keyboard.JustDown(cursors.drift);
+  const driftReleased = Phaser.Input.Keyboard.JustUp(cursors.drift);
+  const driftHeld = cursors.drift.isDown;
   const steer = (cursors.right.isDown || cursors.rightArrow.isDown ? 1 : 0) -
     (cursors.left.isDown || cursors.leftArrow.isDown ? 1 : 0);
 
   if (handbrake) {
     speed = moveTowards(speed, 0, HANDBRAKE_FRICTION * dt);
-  } else if (throttle) {
+  } else if (throttle && !drifting) {
     speed += ACCEL_FWD * dt;
-  } else if (reverse) {
+  } else if (reverse && !drifting) {
     speed -= ACCEL_REV * dt;
   } else {
     speed = moveTowards(speed, 0, GROUND_FRICTION * dt);
   }
 
   if (driftPressed) {
-    speed *= 0.9;
+    speed *= 0.8;
     hopUntil = performance.now() + HOP.DURATION;
+    if (Math.abs(speed) > DRIFT_MIN_SPEED && Math.abs(steer) > 0) {
+      drifting = true;
+      driftCharge = 0;
+    }
+  }
+  if (driftReleased || Math.abs(speed) < DRIFT_MIN_SPEED) {
+    if (drifting) {
+      const boost = driftCharge >= DRIFT_CHARGE_LARGE
+        ? DRIFT_BOOST_LARGE
+        : driftCharge >= DRIFT_CHARGE_MED
+          ? DRIFT_BOOST_MED
+          : DRIFT_BOOST_SMALL;
+      speed = Math.max(speed, 0) + boost;
+    }
+    drifting = false;
+    driftCharge = 0;
+  }
+  if (drifting && !driftHeld) {
+    drifting = false;
+    driftCharge = 0;
+  }
+  if (drifting !== wasDrifting) {
+    setDriftState(ui, drifting);
+    wasDrifting = drifting;
   }
 
   const onTrack = useTiledMap
@@ -182,6 +234,11 @@ function update(_, dtMs) {
     : (currentMap?.onTrack ? currentMap.onTrack(pos.x, pos.y) : true);
 
   let maxSpeed = MAX_SPEED_FWD;
+  if (Math.abs(speed) > HIGH_SPEED_DRAG_START) {
+    const overspeed = Math.abs(speed) - HIGH_SPEED_DRAG_START;
+    const drag = HIGH_SPEED_DRAG * (overspeed / HIGH_SPEED_DRAG_START);
+    speed = moveTowards(speed, 0, drag * dt);
+  }
   if (!onTrack) {
     const offCapFwd = Math.min(MAX_SPEED_FWD * OFFTRACK_SPEED_RATIO, OFFTRACK_SPEED_CAP);
     const offCapRev = Math.min(MAX_SPEED_REV * OFFTRACK_SPEED_RATIO, OFFTRACK_SPEED_CAP * 0.6);
@@ -190,24 +247,45 @@ function update(_, dtMs) {
     } else if (speed < -offCapRev) {
       speed = moveTowards(speed, -offCapRev, OFFTRACK_FRICTION * dt);
     }
+    const offtrackDrag = OFFTRACK_DRAG * (Math.max(Math.abs(speed) - offCapFwd, 0) / offCapFwd);
+    speed = moveTowards(speed, 0, offtrackDrag * dt);
     maxSpeed = offCapFwd;
-    speed = Phaser.Math.Clamp(speed, -offCapRev, maxSpeed);
+    if (speed <= offCapFwd && speed >= -offCapRev) {
+      speed = Phaser.Math.Clamp(speed, -offCapRev, offCapFwd);
+    }
   }
 
-  speed = Phaser.Math.Clamp(speed, -MAX_SPEED_REV, maxSpeed);
+  if (onTrack) {
+    speed = Phaser.Math.Clamp(speed, -MAX_SPEED_REV, maxSpeed);
+  } else {
+    speed = Math.max(speed, -MAX_SPEED_REV);
+  }
 
   const hop = hopState();
 
   if (Math.abs(speed) > 1) {
     const speedRatio = Phaser.Math.Clamp(Math.abs(speed) / MAX_SPEED_FWD, 0, 1);
     const baseTurn = Phaser.Math.Linear(TURN_RATE_MAX, TURN_RATE_MIN, speedRatio);
-    const turnRate = hop.strength > 0 ? 5.0 : baseTurn;
+    let turnRate = hop.strength > 0 ? 5.0 : baseTurn;
+    if (Math.abs(steer) > 0 && Math.abs(speed) > TRACTION_SPEED_MIN) {
+      const slip = Phaser.Math.Clamp((Math.abs(speed) - TRACTION_SPEED_MIN) / (MAX_SPEED_FWD - TRACTION_SPEED_MIN), 0, 1);
+      const tractionLoss = slip * Math.abs(steer);
+      turnRate *= 1 - TRACTION_LOSS * tractionLoss;
+      speed = moveTowards(speed, 0, TRACTION_DRAG * tractionLoss * dt);
+    }
+    if (drifting) {
+      turnRate *= DRIFT_TURN_BONUS;
+      driftCharge += DRIFT_CHARGE_RATE * Math.abs(steer) * speedRatio * dt;
+    }
     heading += steer * turnRate * dt;
     heading = Phaser.Math.Angle.Normalize(heading);
   }
 
-  const vx = Math.cos(heading) * speed;
-  const vy = Math.sin(heading) * speed;
+  const alignRate = drifting ? DRIFT_ALIGN_RATE : NORMAL_ALIGN_RATE;
+  moveAngle = Phaser.Math.Angle.RotateTo(moveAngle, heading, alignRate * dt);
+
+  const vx = Math.cos(moveAngle) * speed;
+  const vy = Math.sin(moveAngle) * speed;
   const nextX = Phaser.Math.Clamp(pos.x + vx * dt, 0, worldWidth);
   const nextY = Phaser.Math.Clamp(pos.y + vy * dt, 0, worldHeight);
   if (useTiledMap && isOnWallLayer(tiledState, nextX, nextY)) {
@@ -235,7 +313,7 @@ function update(_, dtMs) {
 
 function selectMap(mapId, card) {
   selectedMap = mapId;
-  currentMap = getMap(selectedMap, tiledState.available);
+  currentMap = getMap(selectedMap, tiledAvailability);
   if (ui.mapGrid) {
     [...ui.mapGrid.children].forEach((child) => child.classList.remove("active"));
   }
@@ -249,8 +327,9 @@ function selectMap(mapId, card) {
 }
 
 function selectFallbackMap() {
-  selectedMap = "tiled";
-  const fallback = ui.mapGrid?.querySelector("[data-map=\"tiled\"]");
+  const fallbackMap = getMap(selectedMap, tiledAvailability);
+  selectedMap = fallbackMap.id;
+  const fallback = ui.mapGrid?.querySelector(`[data-map="${selectedMap}"]`);
   if (fallback) fallback.classList.add("active");
 }
 
@@ -266,7 +345,7 @@ function showScreen(name) {
 
 function startRace() {
   Object.values(ui.screens).forEach((el) => el && el.classList.add("hidden"));
-  currentMap = getMap(selectedMap, tiledState.available);
+  currentMap = getMap(selectedMap, tiledAvailability);
   gameActive = true;
   setPaused(false);
   setHudVisible(ui, true);
@@ -290,8 +369,11 @@ function resetRace(skipBest) {
 
   pos = { x: spawn.x, y: spawn.y };
   heading = spawn.heading || 0;
+  moveAngle = heading;
   speed = 0;
   hopUntil = 0;
+  drifting = false;
+  driftCharge = 0;
   raceStart = performance.now();
   raceTime = 0;
   if (car) {
@@ -349,9 +431,10 @@ function hopState() {
 }
 
 function drawMap(scene, map) {
-  useTiledMap = map?.id === "tiled";
+  useTiledMap = Boolean(map?.tiledConfigId);
   if (useTiledMap) {
-    const result = setupTiledMap(scene, tiledState, TILEMAP_CONFIG);
+    const config = TILEMAPS[map.tiledConfigId];
+    const result = config ? setupTiledMap(scene, tiledState, config) : { ok: false };
     if (result.ok) {
       worldWidth = result.width;
       worldHeight = result.height;

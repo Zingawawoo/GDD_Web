@@ -1,4 +1,4 @@
-import { WORLD } from "./config.js";
+import { TILEMAPS, WORLD } from "./config.js";
 import { pointInRect, pointInEllipse } from "./utils.js";
 
 function drawStartLine(g, x, y, w, h) {
@@ -170,16 +170,27 @@ function canyonRects() {
 }
 
 export const MAPS = {
-  tiled: {
-    id: "tiled",
-    name: "Stardew",
+  stardew: {
+    id: "stardew",
+    name: TILEMAPS.stardew.name,
     spawn: { x: WORLD.width / 2, y: WORLD.height / 2, heading: 0 },
     draw: drawTiledMap,
     onTrack: () => true,
+    tiledConfigId: "stardew",
+  },
+  willow: {
+    id: "willow",
+    name: TILEMAPS.willow.name,
+    spawn: { x: WORLD.width / 2, y: WORLD.height / 2, heading: 0 },
+    draw: drawTiledMap,
+    onTrack: () => true,
+    tiledConfigId: "willow",
   },
 };
 
-export function getMap(id, tiledAvailable) {
-  if (id === "tiled" && !tiledAvailable) return MAPS.tiled;
-  return MAPS[id] || MAPS.tiled;
+export function getMap(id, availability = {}) {
+  const map = MAPS[id];
+  if (map && availability[map.id] !== false) return map;
+  const fallback = Object.values(MAPS).find((entry) => availability[entry.id] !== false);
+  return fallback || MAPS.stardew;
 }

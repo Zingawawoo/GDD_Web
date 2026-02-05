@@ -6,22 +6,23 @@ export function createTiledState() {
     wallLayer: null,
     drivableSpawn: null,
     objectSprites: [],
-    available: false,
+    mapKey: null,
   };
 }
 
-export function updateTiledAvailability(scene, tiled, config) {
+export function isTiledAvailable(scene, config) {
   const mapReady = Boolean(scene.cache.tilemap.get(config.key));
   const tilesReady = Array.isArray(config.tilesets)
     ? config.tilesets.every((tileset) => scene.textures.exists(tileset.imageKey))
     : false;
-  tiled.available = mapReady && tilesReady;
+  return mapReady && tilesReady;
 }
 
 export function setupTiledMap(scene, tiled, config) {
-  if (!tiled.available) return { ok: false };
-  if (!tiled.tilemap) {
+  if (!tiled.tilemap || tiled.mapKey !== config.key) {
+    resetTiledMap(tiled);
     tiled.tilemap = scene.make.tilemap({ key: config.key });
+    tiled.mapKey = config.key;
     const tilesets = (config.tilesets || [])
       .filter((entry) => entry.forLayers !== false)
       .map((entry) => {
@@ -115,4 +116,25 @@ function createObjectSprites(scene, tiled, config) {
     });
   });
   return sprites;
+}
+
+function resetTiledMap(tiled) {
+  tiled.tilemapLayers.forEach((layer) => layer.destroy());
+  tiled.tilemapLayers = [];
+  if (tiled.drivableLayer) {
+    tiled.drivableLayer.destroy();
+    tiled.drivableLayer = null;
+  }
+  if (tiled.wallLayer) {
+    tiled.wallLayer.destroy();
+    tiled.wallLayer = null;
+  }
+  tiled.objectSprites.forEach((sprite) => sprite.destroy());
+  tiled.objectSprites = [];
+  if (tiled.tilemap && typeof tiled.tilemap.destroy === "function") {
+    tiled.tilemap.destroy();
+  }
+  tiled.tilemap = null;
+  tiled.mapKey = null;
+  tiled.drivableSpawn = null;
 }

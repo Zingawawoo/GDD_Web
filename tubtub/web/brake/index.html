@@ -58,6 +58,10 @@
         font-size: 18px;
         letter-spacing: 2px;
       }
+      .hud .value.drift-on {
+        color: #f5d36a;
+        text-shadow: 0 0 10px rgba(245, 211, 106, 0.6);
+      }
       .pause-banner {
         position: fixed;
         inset: 0;
@@ -309,7 +313,8 @@
       <div class="panel">
         <h1>Map Select</h1>
         <div class="grid" id="map-grid">
-          <div class="map-card active" data-map="tiled">Stardew</div>
+          <div class="map-card active" data-map="stardew">Stardew</div>
+          <div class="map-card" data-map="willow">Willow</div>
         </div>
         <button class="start-btn" id="map-continue">Start Race</button>
         <button class="ghost-btn" id="map-back">Back</button>
@@ -324,6 +329,8 @@
       <div class="value" id="hud-best">--</div>
       <div>Speed</div>
       <div class="value" id="hud-speed">0</div>
+      <div>Drift</div>
+      <div class="value" id="hud-drift">Off</div>
     </div>
     <div class="pause-banner" id="pause-banner">
       <div class="pause-panel">
