@@ -18,6 +18,7 @@ export function initUI() {
     mapBack: document.getElementById("map-back"),
     mapContinue: document.getElementById("map-continue"),
     mapGrid: document.getElementById("map-grid"),
+    botToggle: document.getElementById("bot-toggle"),
     hud: document.getElementById("hud"),
     hudMap: document.getElementById("hud-map"),
     hudTimer: document.getElementById("hud-timer"),

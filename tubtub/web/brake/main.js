@@ -1,9 +1,11 @@
 import { CAR_CATALOG, COLOR_SWATCHES } from "./js/cars.js";
 import { BEST_TIME_KEY, FRAME_COUNT, HOP, PHYSICS, TILEMAPS, WORLD } from "./js/config.js";
+import { getBotControls, getPlayerControls } from "./js/controls.js";
 import { MAPS, getMap } from "./js/maps.js";
 import { moveTowards } from "./js/utils.js";
 import { createTiledState, hideTiledMap, isOnDrivableLayer, isOnWallLayer, isTiledAvailable, setupTiledMap } from "./js/tiled.js";
 import { buildCarGrid, highlightCards, initUI, renderCardPreviews, renderSwatches, setDriftState, setHudVisible, updateHud, updateMapCards, updatePreview, wireMenu, wirePause } from "./js/ui.js";
+import { frameKey, loadCarFrames, swapCar, updateCarFrame } from "./js/vehicle.js";
 
 const gameConfig = {
   type: Phaser.AUTO,
@@ -85,12 +87,13 @@ let drifting = false;
 let driftCharge = 0;
 let wasDrifting = false;
 let tiledAvailability = {};
+let botMode = false;
 
 const tiledState = createTiledState();
 let ui;
 
 function preload() {
-  loadCarFrames(this, currentCar, currentColor);
+  loadCarFrames(this, currentCar, currentColor, FRAME_COUNT);
 
   // Reset loader path after loading car frames so map assets resolve from root.
   this.load.setPath("");
@@ -170,7 +173,7 @@ function update(_, dtMs) {
   if (!car) return;
   if (needsCarSwap) {
     needsCarSwap = false;
-    swapCar(this);
+    swapCar(this, car, currentCar, currentColor, FRAME_COUNT, heading);
   }
 
   if (gameActive && Phaser.Input.Keyboard.JustDown(pauseKey)) {
@@ -181,14 +184,16 @@ function update(_, dtMs) {
   }
   if (!gameActive || paused) return;
 
-  const throttle = cursors.up.isDown || cursors.upArrow.isDown;
-  const reverse = cursors.down.isDown || cursors.downArrow.isDown;
-  const handbrake = cursors.handbrake.isDown;
-  const driftPressed = Phaser.Input.Keyboard.JustDown(cursors.drift);
-  const driftReleased = Phaser.Input.Keyboard.JustUp(cursors.drift);
-  const driftHeld = cursors.drift.isDown;
-  const steer = (cursors.right.isDown || cursors.rightArrow.isDown ? 1 : 0) -
-    (cursors.left.isDown || cursors.leftArrow.isDown ? 1 : 0);
+  const controls = botMode
+    ? getBotControls({ dt, useTiledMap, tiledState, heading, pos, speed, turnRateMax: TURN_RATE_MAX })
+    : getPlayerControls(cursors);
+  const throttle = controls.throttle;
+  const reverse = controls.reverse;
+  const handbrake = controls.handbrake;
+  const driftPressed = controls.driftPressed;
+  const driftReleased = controls.driftReleased;
+  const driftHeld = controls.driftHeld;
+  const steer = controls.steer;
 
   if (handbrake) {
     speed = moveTowards(speed, 0, HANDBRAKE_FRICTION * dt);
@@ -300,7 +305,7 @@ function update(_, dtMs) {
   car.setPosition(pos.x, pos.y - hop.offset);
   car.setScale(1 + (HOP.SCALE - 1) * hop.strength);
 
-  updateCarFrame(heading);
+  updateCarFrame(car, car.scene, heading, currentCar, currentColor, FRAME_COUNT);
 
   raceTime = performance.now() - raceStart;
   updateHud(ui, {
@@ -349,7 +354,8 @@ function startRace() {
   gameActive = true;
   setPaused(false);
   setHudVisible(ui, true);
-  swapCar(car.scene);
+  botMode = Boolean(ui.botToggle?.checked);
+  swapCar(car.scene, car, currentCar, currentColor, FRAME_COUNT, heading);
   drawMap(car.scene, currentMap);
   car.setDepth(1);
   resetRace(true);
@@ -379,7 +385,7 @@ function resetRace(skipBest) {
   if (car) {
     car.setPosition(pos.x, pos.y);
     car.setScale(1);
-    updateCarFrame(heading);
+    updateCarFrame(car, car.scene, heading, currentCar, currentColor, FRAME_COUNT);
   }
   updateHud(ui, {
     mapName: currentMap?.name,
@@ -459,41 +465,7 @@ function drawMap(scene, map) {
   scene.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
 }
 
-function loadCarFrames(scene, entry, color) {
-  scene.load.setPath(entry.path(color));
-  for (let i = 0; i < FRAME_COUNT; i += 1) {
-    scene.load.image(frameKey(entry.id, color, i), entry.file(color, i));
-  }
-}
-
-function swapCar(scene) {
-  if (!scene.textures.exists(frameKey(currentCar.id, currentColor, 0))) {
-    loadCarFrames(scene, currentCar, currentColor);
-    scene.load.once("complete", () => {
-      updateCarFrame(heading);
-    });
-    scene.load.start();
-    return;
-  }
-  updateCarFrame(heading);
-}
-
-function updateCarFrame(angle) {
-  if (!car || !car.scene?.textures.exists(frameKey(currentCar.id, currentColor, 0))) {
-    return;
-  }
-  const full = Math.PI * 2;
-  const normalized = (angle + full) % full;
-  const index = Math.round((normalized / full) * FRAME_COUNT) % FRAME_COUNT;
-  const key = frameKey(currentCar.id, currentColor, index);
-  if (car.scene.textures.exists(key)) {
-    car.setTexture(key);
-  }
-}
-
-function frameKey(type, color, index) {
-  return `car-${type}-${color}-${index}`;
-}
+// Vehicle helpers moved to js/vehicle.js
 
 function handleColorSelect(color) {
   if (color === currentColor) return;
