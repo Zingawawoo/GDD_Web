@@ -1,11 +1,11 @@
 import { CAR_CATALOG, COLOR_SWATCHES } from "./js/cars.js";
-import { BEST_TIME_KEY, FRAME_COUNT, HOP, PHYSICS, TILEMAPS, WORLD } from "./js/config.js";
+import { BEST_GHOST_KEY, BEST_TIME_KEY, FRAME_COUNT, GHOST_TOGGLE_KEY, HOP, PHYSICS, SETTINGS_KEY, TILEMAPS, WORLD } from "./js/config.js";
 import { getBotControls, getPlayerControls } from "./js/controls.js";
 import { MAPS, getMap } from "./js/maps.js";
 import { buildCheckpointState, isOnCluster } from "./js/checkpoints.js";
 import { moveTowards } from "./js/utils.js";
 import { createTiledState, hideTiledMap, isOnDrivableLayer, isOnWallLayer, isTiledAvailable, setupTiledMap } from "./js/tiled.js";
-import { buildCarGrid, highlightCards, initUI, renderCardPreviews, renderSwatches, setDriftState, setHudVisible, updateHud, updateMapCards, updatePreview, wireMenu, wirePause } from "./js/ui.js";
+import { buildCarGrid, highlightCards, initUI, readSettingsValues, renderCardPreviews, renderSwatches, setDriftState, setHudVisible, setSettingsValues, updateHud, updateMapCards, updatePreview, wireMenu, wirePause, wireSettings } from "./js/ui.js";
 import { frameKey, loadCarFrames, swapCar, updateCarFrame } from "./js/vehicle.js";
 
 const gameConfig = {
@@ -31,32 +31,13 @@ const gameConfig = {
 
 new Phaser.Game(gameConfig);
 
-const {
-  ACCEL_FWD,
-  ACCEL_REV,
-  MAX_SPEED_FWD,
-  MAX_SPEED_REV,
-  GROUND_FRICTION,
-  HANDBRAKE_FRICTION,
-  HIGH_SPEED_DRAG,
-  HIGH_SPEED_DRAG_START,
-  OFFTRACK_FRICTION,
-  OFFTRACK_DRAG,
-  OFFTRACK_SPEED_CAP,
-  OFFTRACK_SPEED_RATIO,
-  TURN_RATE_MAX,
-  TURN_RATE_MIN,
-  TRACTION_DRAG,
-  TRACTION_LOSS,
-  TRACTION_SPEED_MIN,
-  DRIFT_ALIGN_RATE,
-  DRIFT_CHARGE_LARGE,
-  DRIFT_CHARGE_MED,
-  DRIFT_CHARGE_RATE,
-  DRIFT_MIN_SPEED,
-  DRIFT_TURN_BONUS,
-  NORMAL_ALIGN_RATE,
-} = PHYSICS;
+const physicsDefaults = { ...PHYSICS };
+let physics = { ...PHYSICS };
+
+const GHOST_SAMPLE_MS = 60;
+const GHOST_MAX_FRAMES = 6000;
+const COUNTDOWN_MS = 3000;
+const GO_BANNER_MS = 700;
 
 let car;
 let cursors;
@@ -91,6 +72,17 @@ let lastShake = 0;
 let skidTimer = 0;
 let skidLayer;
 let skidMarks = [];
+let ghostSprite;
+let ghostStore = {};
+let ghostFrames = [];
+let ghostRecord = [];
+let ghostRecordMeta = null;
+let ghostMeta = null;
+let ghostSampleAt = 0;
+let ghostCursor = 0;
+let goUntil = 0;
+let countdownActive = false;
+let ghostEnabled = true;
 
 const tiledState = createTiledState();
 let ui;
@@ -116,6 +108,9 @@ function create() {
     return acc;
   }, {});
   ui = initUI();
+  const savedSettings = loadSettings();
+  applySettings(savedSettings);
+  setSettingsValues(ui, physics);
   updateMapCards(ui, tiledAvailability, () => selectFallbackMap());
 
   currentMap = getMap(selectedMap, tiledAvailability);
@@ -153,6 +148,22 @@ function create() {
   renderCardPreviews(ui);
 
   bestTimes = loadBestTimes();
+  ghostStore = loadGhosts();
+  setGhostForMap(currentMap?.id);
+  ensureGhostSprite(this);
+  ghostEnabled = loadGhostToggle();
+  if (ui.ghostToggle) {
+    if (ui.ghostToggle.disabled) {
+      ghostEnabled = false;
+    }
+    ui.ghostToggle.checked = ghostEnabled;
+    ui.ghostToggle.addEventListener("change", (event) => {
+      ghostEnabled = Boolean(event.target.checked);
+      saveGhostToggle(ghostEnabled);
+      updateGhostVisibility();
+    });
+  }
+  updateGhostVisibility();
   setHudVisible(ui, false);
   wirePause(ui, {
     onResume: () => setPaused(false),
@@ -163,6 +174,11 @@ function create() {
     showScreen,
     startRace,
     onMapSelect: (mapId, card) => selectMap(mapId, card),
+  });
+  wireSettings(ui, {
+    showScreen,
+    onApply: () => applySettingsFromUI(),
+    onReset: () => resetSettingsFromUI(),
   });
 
   this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
@@ -189,9 +205,50 @@ function update(_, dtMs) {
   }
   if (!gameActive || paused) return;
 
-  const controls = botMode
-    ? getBotControls({ dt, useTiledMap, tiledState, heading, pos, speed, turnRateMax: TURN_RATE_MAX })
-    : getPlayerControls(cursors);
+  const now = performance.now();
+  let stateText = "Race";
+  let stateTone = "race";
+  if (countdownActive) {
+    const remaining = raceStart - now;
+    if (remaining > 0) {
+      const count = Math.ceil(remaining / 1000);
+      stateText = `Ready ${count}`;
+      stateTone = "ready";
+    } else {
+      countdownActive = false;
+      goUntil = now + GO_BANNER_MS;
+      stateText = "Go";
+      stateTone = "go";
+    }
+  } else if (now < goUntil) {
+    stateText = "Go";
+    stateTone = "go";
+  }
+
+  const canDrive = now >= raceStart && !countdownActive;
+  const controls = canDrive
+    ? (botMode
+      ? getBotControls({
+        dt,
+        useTiledMap,
+        tiledState,
+        heading,
+        pos,
+        speed,
+        turnRateMax: physics.TURN_RATE_MAX,
+        drifting,
+        driftMinSpeed: physics.DRIFT_MIN_SPEED,
+      })
+      : getPlayerControls(cursors))
+    : {
+      throttle: false,
+      reverse: false,
+      handbrake: false,
+      driftPressed: false,
+      driftReleased: false,
+      driftHeld: false,
+      steer: 0,
+    };
   const throttle = controls.throttle;
   const reverse = controls.reverse;
   const handbrake = controls.handbrake;
@@ -201,24 +258,24 @@ function update(_, dtMs) {
   const steer = controls.steer;
 
   if (handbrake) {
-    speed = moveTowards(speed, 0, HANDBRAKE_FRICTION * dt);
+    speed = moveTowards(speed, 0, physics.HANDBRAKE_FRICTION * dt);
   } else if (throttle && !drifting) {
-    speed += ACCEL_FWD * dt;
+    speed += physics.ACCEL_FWD * dt;
   } else if (reverse && !drifting) {
-    speed -= ACCEL_REV * dt;
+    speed -= physics.ACCEL_REV * dt;
   } else {
-    speed = moveTowards(speed, 0, GROUND_FRICTION * dt);
+    speed = moveTowards(speed, 0, physics.GROUND_FRICTION * dt);
   }
 
   if (driftPressed) {
     speed *= 0.8;
     hopUntil = performance.now() + HOP.DURATION;
-    if (Math.abs(speed) > DRIFT_MIN_SPEED && Math.abs(steer) > 0) {
+    if (Math.abs(speed) > physics.DRIFT_MIN_SPEED && Math.abs(steer) > 0) {
       drifting = true;
       driftCharge = 0;
     }
   }
-  if (driftReleased || Math.abs(speed) < DRIFT_MIN_SPEED) {
+  if (driftReleased || Math.abs(speed) < physics.DRIFT_MIN_SPEED) {
     drifting = false;
     driftCharge = 0;
   }
@@ -235,21 +292,21 @@ function update(_, dtMs) {
     ? isOnDrivableLayer(tiledState, pos.x, pos.y)
     : (currentMap?.onTrack ? currentMap.onTrack(pos.x, pos.y) : true);
 
-  let maxSpeed = MAX_SPEED_FWD;
-  if (Math.abs(speed) > HIGH_SPEED_DRAG_START) {
-    const overspeed = Math.abs(speed) - HIGH_SPEED_DRAG_START;
-    const drag = HIGH_SPEED_DRAG * (overspeed / HIGH_SPEED_DRAG_START);
+  let maxSpeed = physics.MAX_SPEED_FWD;
+  if (Math.abs(speed) > physics.HIGH_SPEED_DRAG_START) {
+    const overspeed = Math.abs(speed) - physics.HIGH_SPEED_DRAG_START;
+    const drag = physics.HIGH_SPEED_DRAG * (overspeed / physics.HIGH_SPEED_DRAG_START);
     speed = moveTowards(speed, 0, drag * dt);
   }
   if (!onTrack) {
-    const offCapFwd = Math.min(MAX_SPEED_FWD * OFFTRACK_SPEED_RATIO, OFFTRACK_SPEED_CAP);
-    const offCapRev = Math.min(MAX_SPEED_REV * OFFTRACK_SPEED_RATIO, OFFTRACK_SPEED_CAP * 0.6);
+    const offCapFwd = Math.min(physics.MAX_SPEED_FWD * physics.OFFTRACK_SPEED_RATIO, physics.OFFTRACK_SPEED_CAP);
+    const offCapRev = Math.min(physics.MAX_SPEED_REV * physics.OFFTRACK_SPEED_RATIO, physics.OFFTRACK_SPEED_CAP * 0.6);
     if (speed > offCapFwd) {
-      speed = moveTowards(speed, offCapFwd, OFFTRACK_FRICTION * dt);
+      speed = moveTowards(speed, offCapFwd, physics.OFFTRACK_FRICTION * dt);
     } else if (speed < -offCapRev) {
-      speed = moveTowards(speed, -offCapRev, OFFTRACK_FRICTION * dt);
+      speed = moveTowards(speed, -offCapRev, physics.OFFTRACK_FRICTION * dt);
     }
-    const offtrackDrag = OFFTRACK_DRAG * (Math.max(Math.abs(speed) - offCapFwd, 0) / offCapFwd);
+    const offtrackDrag = physics.OFFTRACK_DRAG * (Math.max(Math.abs(speed) - offCapFwd, 0) / offCapFwd);
     speed = moveTowards(speed, 0, offtrackDrag * dt);
     maxSpeed = offCapFwd;
     if (speed <= offCapFwd && speed >= -offCapRev) {
@@ -258,33 +315,33 @@ function update(_, dtMs) {
   }
 
   if (onTrack) {
-    speed = Phaser.Math.Clamp(speed, -MAX_SPEED_REV, maxSpeed);
+    speed = Phaser.Math.Clamp(speed, -physics.MAX_SPEED_REV, maxSpeed);
   } else {
-    speed = Math.max(speed, -MAX_SPEED_REV);
+    speed = Math.max(speed, -physics.MAX_SPEED_REV);
   }
 
 
   const hop = hopState();
 
   if (Math.abs(speed) > 1) {
-    const speedRatio = Phaser.Math.Clamp(Math.abs(speed) / MAX_SPEED_FWD, 0, 1);
-    const baseTurn = Phaser.Math.Linear(TURN_RATE_MAX, TURN_RATE_MIN, speedRatio);
+    const speedRatio = Phaser.Math.Clamp(Math.abs(speed) / physics.MAX_SPEED_FWD, 0, 1);
+    const baseTurn = Phaser.Math.Linear(physics.TURN_RATE_MAX, physics.TURN_RATE_MIN, speedRatio);
     let turnRate = hop.strength > 0 ? 5.0 : baseTurn;
-    if (Math.abs(steer) > 0 && Math.abs(speed) > TRACTION_SPEED_MIN) {
-      const slip = Phaser.Math.Clamp((Math.abs(speed) - TRACTION_SPEED_MIN) / (MAX_SPEED_FWD - TRACTION_SPEED_MIN), 0, 1);
+    if (Math.abs(steer) > 0 && Math.abs(speed) > physics.TRACTION_SPEED_MIN) {
+      const slip = Phaser.Math.Clamp((Math.abs(speed) - physics.TRACTION_SPEED_MIN) / (physics.MAX_SPEED_FWD - physics.TRACTION_SPEED_MIN), 0, 1);
       const tractionLoss = slip * Math.abs(steer);
-      turnRate *= 1 - TRACTION_LOSS * tractionLoss;
-      speed = moveTowards(speed, 0, TRACTION_DRAG * tractionLoss * dt);
+      turnRate *= 1 - physics.TRACTION_LOSS * tractionLoss;
+      speed = moveTowards(speed, 0, physics.TRACTION_DRAG * tractionLoss * dt);
     }
     if (drifting) {
-      turnRate *= DRIFT_TURN_BONUS;
-      driftCharge += DRIFT_CHARGE_RATE * Math.abs(steer) * speedRatio * dt;
+      turnRate *= physics.DRIFT_TURN_BONUS;
+      driftCharge += physics.DRIFT_CHARGE_RATE * Math.abs(steer) * speedRatio * dt;
     }
     heading += steer * turnRate * dt;
     heading = Phaser.Math.Angle.Normalize(heading);
   }
 
-  const alignRate = drifting ? DRIFT_ALIGN_RATE : NORMAL_ALIGN_RATE;
+  const alignRate = drifting ? physics.DRIFT_ALIGN_RATE : physics.NORMAL_ALIGN_RATE;
   moveAngle = Phaser.Math.Angle.RotateTo(moveAngle, heading, alignRate * dt);
 
   const vx = Math.cos(moveAngle) * speed;
@@ -293,7 +350,7 @@ function update(_, dtMs) {
   const nextY = Phaser.Math.Clamp(pos.y + vy * dt, 0, worldHeight);
   if (useTiledMap && isOnWallLayer(tiledState, nextX, nextY)) {
     // Soft wall nudge: damp speed and push slightly away instead of flipping.
-    speed = moveTowards(speed, 0, OFFTRACK_FRICTION * dt);
+    speed = moveTowards(speed, 0, physics.OFFTRACK_FRICTION * dt);
     pos.x = Phaser.Math.Clamp(pos.x - vx * dt * 0.6, 0, worldWidth);
     pos.y = Phaser.Math.Clamp(pos.y - vy * dt * 0.6, 0, worldHeight);
     const now = performance.now();
@@ -333,12 +390,18 @@ function update(_, dtMs) {
 
   updateCarFrame(car, car.scene, heading, currentCar, currentColor, FRAME_COUNT);
 
-  raceTime = performance.now() - raceStart;
+  raceTime = Math.max(0, now - raceStart);
+  if (canDrive) {
+    recordGhostSample(raceTime);
+  }
+  updateGhostPlayback(raceTime);
   updateHud(ui, {
     mapName: currentMap?.name,
     timeMs: raceTime,
     bestMs: currentMap ? bestTimes[currentMap.id] : null,
     speed,
+    state: stateText,
+    stateTone,
   });
 }
 
@@ -354,6 +417,8 @@ function selectMap(mapId, card) {
     timeMs: raceTime,
     bestMs: currentMap ? bestTimes[currentMap.id] : null,
     speed,
+    state: "Ready",
+    stateTone: "ready",
   });
 }
 
@@ -384,7 +449,9 @@ function startRace() {
   swapCar(car.scene, car, currentCar, currentColor, FRAME_COUNT, heading);
   drawMap(car.scene, currentMap);
   car.setDepth(1);
-  resetRace(true);
+  setGhostForMap(currentMap?.id);
+  ensureGhostSprite(car.scene);
+  resetRace(true, true);
 }
 
 function setPaused(value) {
@@ -392,9 +459,12 @@ function setPaused(value) {
   if (ui.pauseBanner) ui.pauseBanner.classList.toggle("active", paused);
 }
 
-function resetRace(skipBest) {
+function resetRace(skipBest, useCountdown = false) {
   if (!currentMap) return;
-  if (!skipBest) recordBestTime();
+  if (!skipBest) {
+    const isBest = recordBestTime();
+    if (isBest) saveGhostRun();
+  }
   const spawn = useTiledMap
     ? (tiledState.drivableSpawn || { x: worldWidth / 2, y: worldHeight / 2, heading: 0 })
     : (currentMap.spawn || { x: WORLD.width / 2, y: WORLD.height / 2, heading: 0 });
@@ -414,7 +484,20 @@ function resetRace(skipBest) {
     checkpointState.lastPos = checkpointState.sequence[0].centerWorld;
   }
   raceStart = performance.now();
+  if (useCountdown) {
+    raceStart += COUNTDOWN_MS;
+    countdownActive = true;
+    goUntil = 0;
+  } else {
+    countdownActive = false;
+    goUntil = 0;
+  }
   raceTime = 0;
+  ghostRecord = [];
+  ghostRecordMeta = { carId: currentCar.id, color: currentColor };
+  ghostSampleAt = 0;
+  ghostCursor = 0;
+  updateGhostPlayback(0);
   if (car) {
     car.setPosition(pos.x, pos.y);
     car.setScale(1);
@@ -425,6 +508,8 @@ function resetRace(skipBest) {
     timeMs: raceTime,
     bestMs: currentMap ? bestTimes[currentMap.id] : null,
     speed,
+    state: useCountdown ? "Ready 3" : "Race",
+    stateTone: useCountdown ? "ready" : "race",
   });
 }
 
@@ -449,12 +534,209 @@ function saveBestTimes() {
 }
 
 function recordBestTime() {
-  if (!currentMap || raceTime <= 0) return;
+  if (!currentMap || raceTime <= 0) return false;
   const currentBest = bestTimes[currentMap.id];
   if (!currentBest || raceTime < currentBest) {
     bestTimes[currentMap.id] = raceTime;
     saveBestTimes();
+    return true;
   }
+  return false;
+}
+
+function applySettings(values) {
+  if (!values || typeof values !== "object") return;
+  Object.entries(values).forEach(([key, value]) => {
+    if (typeof value !== "number" || Number.isNaN(value)) return;
+    if (!(key in physics)) return;
+    physics[key] = value;
+  });
+}
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") return parsed;
+  } catch (err) {
+    console.warn("Failed to load settings", err);
+  }
+  return {};
+}
+
+function saveSettings(values) {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(values));
+  } catch (err) {
+    console.warn("Failed to save settings", err);
+  }
+}
+
+function applySettingsFromUI() {
+  const values = readSettingsValues(ui);
+  applySettings(values);
+  saveSettings(values);
+}
+
+function resetSettingsFromUI() {
+  physics = { ...physicsDefaults };
+  setSettingsValues(ui, physics);
+  saveSettings(physics);
+}
+
+function loadGhosts() {
+  try {
+    const raw = localStorage.getItem(BEST_GHOST_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") return parsed;
+  } catch (err) {
+    console.warn("Failed to load ghost data", err);
+  }
+  return {};
+}
+
+function saveGhosts() {
+  try {
+    localStorage.setItem(BEST_GHOST_KEY, JSON.stringify(ghostStore));
+  } catch (err) {
+    console.warn("Failed to save ghost data", err);
+  }
+}
+
+function setGhostForMap(mapId) {
+  const entry = mapId ? ghostStore[mapId] : null;
+  if (entry && Array.isArray(entry.frames) && entry.frames.length > 1) {
+    ghostFrames = entry.frames;
+    ghostMeta = { carId: entry.carId, color: entry.color };
+  } else {
+    ghostFrames = [];
+    ghostMeta = null;
+  }
+  ghostCursor = 0;
+  updateGhostToggleAvailability();
+  updateGhostVisibility();
+}
+
+function ensureGhostSprite(scene) {
+  if (!scene) return;
+  if (!ghostMeta || !ghostFrames.length) {
+    if (ghostSprite) ghostSprite.setVisible(false);
+    return;
+  }
+  const entry = CAR_CATALOG.find((carEntry) => carEntry.id === ghostMeta.carId);
+  if (!entry) {
+    if (ghostSprite) ghostSprite.setVisible(false);
+    return;
+  }
+  if (!ghostSprite) {
+    ghostSprite = scene.add.image(0, 0, frameKey(entry.id, ghostMeta.color, 0));
+    ghostSprite.setDepth(0.8);
+    ghostSprite.setAlpha(0.45);
+  }
+  ghostSprite.setVisible(true);
+  swapCar(scene, ghostSprite, entry, ghostMeta.color, FRAME_COUNT, 0);
+}
+
+function updateGhostToggleAvailability() {
+  if (!ui?.ghostToggle) return;
+  const hasGhost = ghostFrames.length > 0;
+  ui.ghostToggle.disabled = !hasGhost;
+  if (!hasGhost) {
+    ui.ghostToggle.checked = false;
+    ghostEnabled = false;
+  }
+}
+
+function loadGhostToggle() {
+  try {
+    const raw = localStorage.getItem(GHOST_TOGGLE_KEY);
+    if (!raw) return true;
+    return raw === "true";
+  } catch (err) {
+    console.warn("Failed to load ghost toggle", err);
+  }
+  return true;
+}
+
+function saveGhostToggle(enabled) {
+  try {
+    localStorage.setItem(GHOST_TOGGLE_KEY, String(Boolean(enabled)));
+  } catch (err) {
+    console.warn("Failed to save ghost toggle", err);
+  }
+}
+
+function updateGhostVisibility() {
+  if (!ghostEnabled) {
+    if (ghostSprite) ghostSprite.setVisible(false);
+    return;
+  }
+  ensureGhostSprite(car?.scene);
+}
+
+function saveGhostRun() {
+  if (!currentMap || !ghostRecord.length || !ghostRecordMeta) return;
+  const frames = ghostRecord.slice(0, GHOST_MAX_FRAMES);
+  ghostStore[currentMap.id] = {
+    timeMs: raceTime,
+    frames,
+    carId: ghostRecordMeta.carId,
+    color: ghostRecordMeta.color,
+  };
+  saveGhosts();
+  setGhostForMap(currentMap.id);
+  ensureGhostSprite(car?.scene);
+}
+
+function recordGhostSample(timeMs) {
+  if (!currentMap || !ghostRecordMeta) return;
+  if (ghostRecord.length >= GHOST_MAX_FRAMES) return;
+  if (timeMs - ghostSampleAt < GHOST_SAMPLE_MS) return;
+  ghostSampleAt = timeMs;
+  ghostRecord.push({
+    t: timeMs,
+    x: pos.x,
+    y: pos.y,
+    heading,
+  });
+}
+
+function updateGhostPlayback(timeMs) {
+  if (!ghostEnabled) {
+    if (ghostSprite) ghostSprite.setVisible(false);
+    return;
+  }
+  if (!ghostSprite || !ghostFrames.length) return;
+  if (timeMs <= 0) {
+    ghostCursor = 0;
+  }
+  if (timeMs > ghostFrames[ghostFrames.length - 1].t) {
+    ghostSprite.setVisible(false);
+    return;
+  }
+  ghostSprite.setVisible(true);
+  while (ghostCursor < ghostFrames.length - 1 && ghostFrames[ghostCursor + 1].t <= timeMs) {
+    ghostCursor += 1;
+  }
+  const current = ghostFrames[ghostCursor];
+  const next = ghostFrames[Math.min(ghostCursor + 1, ghostFrames.length - 1)];
+  const span = next.t - current.t;
+  const ratio = span > 0 ? Phaser.Math.Clamp((timeMs - current.t) / span, 0, 1) : 0;
+  const gx = Phaser.Math.Linear(current.x, next.x, ratio);
+  const gy = Phaser.Math.Linear(current.y, next.y, ratio);
+  const gHeading = lerpAngle(current.heading, next.heading, ratio);
+  ghostSprite.setPosition(gx, gy);
+  const entry = ghostMeta ? CAR_CATALOG.find((carEntry) => carEntry.id === ghostMeta.carId) : null;
+  if (entry) {
+    updateCarFrame(ghostSprite, ghostSprite.scene, gHeading, entry, ghostMeta.color, FRAME_COUNT);
+  }
+}
+
+function lerpAngle(a, b, t) {
+  const diff = Phaser.Math.Angle.Wrap(b - a);
+  return a + diff * t;
 }
 
 function updateSkid(dt, vx, vy) {

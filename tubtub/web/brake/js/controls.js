@@ -11,15 +11,16 @@ export function getPlayerControls(cursors) {
   };
 }
 
-export function getBotControls({ dt, useTiledMap, tiledState, heading, pos, speed, turnRateMax }) {
+export function getBotControls({ dt, useTiledMap, tiledState, heading, pos, speed, turnRateMax, drifting, driftMinSpeed }) {
   const steer = useTiledMap ? getRoadSteer({ dt, tiledState, heading, pos, speed, turnRateMax }) : 0;
+  const shouldDrift = Math.abs(speed) > (driftMinSpeed || 0) && Math.abs(steer) >= 0.55;
   return {
     throttle: true,
     reverse: false,
     handbrake: false,
-    driftPressed: false,
-    driftReleased: false,
-    driftHeld: false,
+    driftPressed: shouldDrift && !drifting,
+    driftReleased: !shouldDrift && drifting,
+    driftHeld: shouldDrift,
     steer,
   };
 }

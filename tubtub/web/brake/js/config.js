@@ -6,14 +6,14 @@ export const WORLD = {
 export const PHYSICS = {
   ACCEL_FWD: 260,
   ACCEL_REV: 220,
-  MAX_SPEED_FWD: Infinity,
-  MAX_SPEED_REV: Infinity,
+  MAX_SPEED_FWD: 1200,
+  MAX_SPEED_REV: 700,
   GROUND_FRICTION: 300,
   HANDBRAKE_FRICTION: 1400,
   OFFTRACK_FRICTION: 900,
   OFFTRACK_SPEED_CAP: 400,
   OFFTRACK_SPEED_RATIO: 0.4,
-  HIGH_SPEED_DRAG_START: 1200,
+  HIGH_SPEED_DRAG_START: 900,
   HIGH_SPEED_DRAG: 480,
   OFFTRACK_DRAG: 520,
   TURN_RATE_MAX: 4.0,
@@ -39,6 +39,9 @@ export const HOP = {
 export const FRAME_COUNT = 48;
 
 export const BEST_TIME_KEY = "brake-best-times";
+export const BEST_GHOST_KEY = "brake-best-ghosts";
+export const SETTINGS_KEY = "brake-settings";
+export const GHOST_TOGGLE_KEY = "brake-ghost-enabled";
 
 export const TILEMAPS = {
   stardew: {

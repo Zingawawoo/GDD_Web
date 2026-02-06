@@ -51,7 +51,6 @@
         letter-spacing: 1px;
         text-transform: uppercase;
         min-width: 160px;
-        pointer-events: none;
       }
       .hud .value {
         font-family: "M12", "Upheav", "Trebuchet MS", Tahoma, sans-serif;
@@ -61,6 +60,57 @@
       .hud .value.drift-on {
         color: #f5d36a;
         text-shadow: 0 0 10px rgba(245, 211, 106, 0.6);
+      }
+      .hud .value.state-ready {
+        color: #9fb4ff;
+        text-shadow: 0 0 10px rgba(120, 150, 255, 0.5);
+      }
+      .hud .value.state-go {
+        color: #f5d36a;
+        text-shadow: 0 0 10px rgba(245, 211, 106, 0.6);
+      }
+      .hud .hud-toggle {
+        pointer-events: auto;
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        grid-column: 1 / -1;
+      }
+      .hud .hud-toggle input {
+        accent-color: #f5d36a;
+      }
+      .settings-grid {
+        display: grid;
+        gap: 12px;
+        margin: 10px 0 16px;
+      }
+      .setting-row {
+        display: grid;
+        grid-template-columns: 140px 1fr 60px;
+        gap: 10px;
+        align-items: center;
+        font-size: 12px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+      .setting-row .value {
+        font-family: "M12", "Upheav", "Trebuchet MS", Tahoma, sans-serif;
+        font-size: 16px;
+        letter-spacing: 2px;
+        text-align: right;
+      }
+      .setting-row input[type="range"] {
+        width: 100%;
+      }
+      .settings-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
       }
       .pause-banner {
         position: fixed;
@@ -272,6 +322,70 @@
           <button class="ghost-btn" id="menu-rules">Rules</button>
           <button class="ghost-btn" id="menu-character">Character Select</button>
           <button class="ghost-btn" id="menu-map">Map Select</button>
+          <button class="ghost-btn" id="menu-settings">Settings</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen full hidden" id="settings-screen">
+      <div class="panel">
+        <h1>Settings</h1>
+        <div class="settings-grid">
+          <div class="setting-row">
+            <label for="set-max-speed">Max Speed</label>
+            <input type="range" id="set-max-speed" min="600" max="1600" step="25" />
+            <div class="value" id="set-max-speed-value">1200</div>
+          </div>
+          <div class="setting-row">
+            <label for="set-accel">Acceleration</label>
+            <input type="range" id="set-accel" min="150" max="450" step="10" />
+            <div class="value" id="set-accel-value">260</div>
+          </div>
+          <div class="setting-row">
+            <label for="set-drag-start">Drag Start</label>
+            <input type="range" id="set-drag-start" min="500" max="1400" step="25" />
+            <div class="value" id="set-drag-start-value">900</div>
+          </div>
+          <div class="setting-row">
+            <label for="set-drag">Drag Strength</label>
+            <input type="range" id="set-drag" min="200" max="900" step="20" />
+            <div class="value" id="set-drag-value">480</div>
+          </div>
+          <div class="setting-row">
+            <label for="set-offtrack-cap">Offtrack Cap</label>
+            <input type="range" id="set-offtrack-cap" min="200" max="700" step="10" />
+            <div class="value" id="set-offtrack-cap-value">400</div>
+          </div>
+          <div class="setting-row">
+            <label for="set-offtrack-drag">Offtrack Drag</label>
+            <input type="range" id="set-offtrack-drag" min="200" max="900" step="20" />
+            <div class="value" id="set-offtrack-drag-value">520</div>
+          </div>
+          <div class="setting-row">
+            <label for="set-drift-min">Drift Min Speed</label>
+            <input type="range" id="set-drift-min" min="150" max="420" step="10" />
+            <div class="value" id="set-drift-min-value">260</div>
+          </div>
+          <div class="setting-row">
+            <label for="set-drift-turn">Drift Turn Bonus</label>
+            <input type="range" id="set-drift-turn" min="1" max="2.2" step="0.05" />
+            <div class="value" id="set-drift-turn-value">1.4</div>
+          </div>
+          <div class="setting-row">
+            <label for="set-drift-align">Drift Align</label>
+            <input type="range" id="set-drift-align" min="1" max="5" step="0.1" />
+            <div class="value" id="set-drift-align-value">2.2</div>
+          </div>
+          <div class="setting-row">
+            <label for="set-traction-loss">Traction Loss</label>
+            <input type="range" id="set-traction-loss" min="0.1" max="0.6" step="0.02" />
+            <div class="value" id="set-traction-loss-value">0.35</div>
+          </div>
+        </div>
+        <div class="settings-actions">
+          <button class="start-btn" id="settings-apply">Apply</button>
+          <button class="ghost-btn" id="settings-reset">Reset</button>
+          <button class="ghost-btn" id="settings-back">Back</button>
         </div>
       </div>
     </div>
@@ -328,6 +442,8 @@
     <div class="hud" id="hud">
       <div>Map</div>
       <div class="value" id="hud-map">Grid Loop</div>
+      <div>State</div>
+      <div class="value" id="hud-state">Ready</div>
       <div>Timer</div>
       <div class="value" id="hud-timer">0:00.0</div>
       <div>Best</div>
@@ -336,6 +452,10 @@
       <div class="value" id="hud-speed">0</div>
       <div>Drift</div>
       <div class="value" id="hud-drift">Off</div>
+      <label class="hud-toggle">
+        <input type="checkbox" id="ghost-toggle" checked />
+        Ghost
+      </label>
     </div>
     <div class="pause-banner" id="pause-banner">
       <div class="pause-panel">
@@ -350,4 +470,3 @@
     <script type="module" src="main.js"></script>
   </body>
 </html>
-

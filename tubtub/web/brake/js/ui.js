@@ -14,13 +14,39 @@ export function initUI() {
     menuRules: document.getElementById("menu-rules"),
     menuCharacter: document.getElementById("menu-character"),
     menuMap: document.getElementById("menu-map"),
+    menuSettings: document.getElementById("menu-settings"),
     rulesBack: document.getElementById("rules-back"),
+    settingsBack: document.getElementById("settings-back"),
+    settingsApply: document.getElementById("settings-apply"),
+    settingsReset: document.getElementById("settings-reset"),
+    settingsMaxSpeed: document.getElementById("set-max-speed"),
+    settingsMaxSpeedValue: document.getElementById("set-max-speed-value"),
+    settingsAccel: document.getElementById("set-accel"),
+    settingsAccelValue: document.getElementById("set-accel-value"),
+    settingsDragStart: document.getElementById("set-drag-start"),
+    settingsDragStartValue: document.getElementById("set-drag-start-value"),
+    settingsDrag: document.getElementById("set-drag"),
+    settingsDragValue: document.getElementById("set-drag-value"),
+    settingsOfftrackCap: document.getElementById("set-offtrack-cap"),
+    settingsOfftrackCapValue: document.getElementById("set-offtrack-cap-value"),
+    settingsOfftrackDrag: document.getElementById("set-offtrack-drag"),
+    settingsOfftrackDragValue: document.getElementById("set-offtrack-drag-value"),
+    settingsDriftMin: document.getElementById("set-drift-min"),
+    settingsDriftMinValue: document.getElementById("set-drift-min-value"),
+    settingsDriftTurn: document.getElementById("set-drift-turn"),
+    settingsDriftTurnValue: document.getElementById("set-drift-turn-value"),
+    settingsDriftAlign: document.getElementById("set-drift-align"),
+    settingsDriftAlignValue: document.getElementById("set-drift-align-value"),
+    settingsTractionLoss: document.getElementById("set-traction-loss"),
+    settingsTractionLossValue: document.getElementById("set-traction-loss-value"),
     mapBack: document.getElementById("map-back"),
     mapContinue: document.getElementById("map-continue"),
     mapGrid: document.getElementById("map-grid"),
     botToggle: document.getElementById("bot-toggle"),
+    ghostToggle: document.getElementById("ghost-toggle"),
     hud: document.getElementById("hud"),
     hudMap: document.getElementById("hud-map"),
+    hudState: document.getElementById("hud-state"),
     hudTimer: document.getElementById("hud-timer"),
     hudBest: document.getElementById("hud-best"),
     hudSpeed: document.getElementById("hud-speed"),
@@ -32,6 +58,7 @@ export function initUI() {
       splash: document.getElementById("splash-screen"),
       menu: document.getElementById("menu-screen"),
       rules: document.getElementById("rules-screen"),
+      settings: document.getElementById("settings-screen"),
       character: document.getElementById("character-screen"),
       map: document.getElementById("map-screen"),
     },
@@ -103,6 +130,7 @@ export function wireMenu(ui, handlers) {
   if (ui.menuRules) ui.menuRules.addEventListener("click", () => handlers.showScreen("rules"));
   if (ui.menuCharacter) ui.menuCharacter.addEventListener("click", () => handlers.showScreen("character"));
   if (ui.menuMap) ui.menuMap.addEventListener("click", () => handlers.showScreen("map"));
+  if (ui.menuSettings) ui.menuSettings.addEventListener("click", () => handlers.showScreen("settings"));
   if (ui.rulesBack) ui.rulesBack.addEventListener("click", () => handlers.showScreen("menu"));
   if (ui.characterBack) ui.characterBack.addEventListener("click", () => handlers.showScreen("menu"));
   if (ui.characterContinue) ui.characterContinue.addEventListener("click", () => handlers.showScreen("map"));
@@ -119,6 +147,61 @@ export function wireMenu(ui, handlers) {
   }
 }
 
+const SETTINGS_BINDINGS = [
+  { key: "MAX_SPEED_FWD", input: "settingsMaxSpeed", value: "settingsMaxSpeedValue", format: (v) => Math.round(v) },
+  { key: "ACCEL_FWD", input: "settingsAccel", value: "settingsAccelValue", format: (v) => Math.round(v) },
+  { key: "HIGH_SPEED_DRAG_START", input: "settingsDragStart", value: "settingsDragStartValue", format: (v) => Math.round(v) },
+  { key: "HIGH_SPEED_DRAG", input: "settingsDrag", value: "settingsDragValue", format: (v) => Math.round(v) },
+  { key: "OFFTRACK_SPEED_CAP", input: "settingsOfftrackCap", value: "settingsOfftrackCapValue", format: (v) => Math.round(v) },
+  { key: "OFFTRACK_DRAG", input: "settingsOfftrackDrag", value: "settingsOfftrackDragValue", format: (v) => Math.round(v) },
+  { key: "DRIFT_MIN_SPEED", input: "settingsDriftMin", value: "settingsDriftMinValue", format: (v) => Math.round(v) },
+  { key: "DRIFT_TURN_BONUS", input: "settingsDriftTurn", value: "settingsDriftTurnValue", format: (v) => v.toFixed(2) },
+  { key: "DRIFT_ALIGN_RATE", input: "settingsDriftAlign", value: "settingsDriftAlignValue", format: (v) => v.toFixed(1) },
+  { key: "TRACTION_LOSS", input: "settingsTractionLoss", value: "settingsTractionLossValue", format: (v) => v.toFixed(2) },
+];
+
+function updateSettingDisplay(ui, binding) {
+  const input = ui[binding.input];
+  const value = ui[binding.value];
+  if (!input || !value) return;
+  const numeric = Number(input.value);
+  value.textContent = binding.format ? binding.format(numeric) : String(numeric);
+}
+
+export function setSettingsValues(ui, values) {
+  SETTINGS_BINDINGS.forEach((binding) => {
+    const input = ui[binding.input];
+    if (!input) return;
+    if (values && values[binding.key] !== undefined) {
+      input.value = String(values[binding.key]);
+    }
+    updateSettingDisplay(ui, binding);
+  });
+}
+
+export function readSettingsValues(ui) {
+  const result = {};
+  SETTINGS_BINDINGS.forEach((binding) => {
+    const input = ui[binding.input];
+    if (!input) return;
+    const value = parseFloat(input.value);
+    if (Number.isNaN(value)) return;
+    result[binding.key] = value;
+  });
+  return result;
+}
+
+export function wireSettings(ui, handlers) {
+  if (ui.settingsBack) ui.settingsBack.addEventListener("click", () => handlers.showScreen("menu"));
+  if (ui.settingsApply) ui.settingsApply.addEventListener("click", () => handlers.onApply?.());
+  if (ui.settingsReset) ui.settingsReset.addEventListener("click", () => handlers.onReset?.());
+  SETTINGS_BINDINGS.forEach((binding) => {
+    const input = ui[binding.input];
+    if (!input) return;
+    input.addEventListener("input", () => updateSettingDisplay(ui, binding));
+  });
+}
+
 export function wirePause(ui, handlers) {
   if (ui.pauseResume) ui.pauseResume.addEventListener("click", () => handlers.onResume());
   if (ui.pauseQuit) ui.pauseQuit.addEventListener("click", () => handlers.onQuit());
@@ -132,6 +215,14 @@ export function setHudVisible(ui, visible) {
 export function updateHud(ui, data) {
   if (!ui.hudMap || !ui.hudTimer || !ui.hudBest || !ui.hudSpeed) return;
   ui.hudMap.textContent = data.mapName || "Map";
+  if (ui.hudState) {
+    const stateText = data.state || ui.hudState.textContent || "Ready";
+    ui.hudState.textContent = stateText;
+    ui.hudState.classList.remove("state-ready", "state-go");
+    if (data.stateTone) {
+      ui.hudState.classList.add(`state-${data.stateTone}`);
+    }
+  }
   ui.hudTimer.textContent = formatTime(data.timeMs);
   ui.hudSpeed.textContent = String(Math.round(Math.abs(data.speed || 0)));
   ui.hudBest.textContent = data.bestMs ? formatTime(data.bestMs) : "--";
