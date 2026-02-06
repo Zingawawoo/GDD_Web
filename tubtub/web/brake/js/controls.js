@@ -1,5 +1,3 @@
-import { isOnDrivableLayer } from "./tiled.js";
-
 export function getPlayerControls(cursors) {
   return {
     throttle: cursors.up.isDown || cursors.upArrow.isDown,
@@ -27,7 +25,8 @@ export function getBotControls({ dt, useTiledMap, tiledState, heading, pos, spee
 }
 
 function getRoadSteer({ dt, tiledState, heading, pos, speed, turnRateMax }) {
-  if (!tiledState.drivableLayer || !tiledState.tilemap) return 0;
+  const navLayer = tiledState.pathLayer || tiledState.drivableLayer;
+  if (!navLayer || !tiledState.tilemap) return 0;
   const lookahead = Phaser.Math.Clamp(Math.abs(speed) * 0.25 + 80, 80, 240);
   const candidates = [-1, -0.5, 0, 0.5, 1];
   let bestScore = -1;
@@ -41,10 +40,10 @@ function getRoadSteer({ dt, tiledState, heading, pos, speed, turnRateMax }) {
     const aheadX = pos.x + dx;
     const aheadY = pos.y + dy;
     const onRoad =
-      (isOnDrivableLayer(tiledState, pos.x + dx * 0.5, pos.y + dy * 0.5) ? 1 : 0) +
-      (isOnDrivableLayer(tiledState, aheadX, aheadY) ? 1 : 0) +
-      (isOnDrivableLayer(tiledState, pos.x + dx * 1.4, pos.y + dy * 1.4) ? 1 : 0);
-    const clearance = roadClearance(tiledState, aheadX, aheadY, testHeading, tileSize);
+      (isOnLayer(navLayer, pos.x + dx * 0.5, pos.y + dy * 0.5) ? 1 : 0) +
+      (isOnLayer(navLayer, aheadX, aheadY) ? 1 : 0) +
+      (isOnLayer(navLayer, pos.x + dx * 1.4, pos.y + dy * 1.4) ? 1 : 0);
+    const clearance = roadClearance(navLayer, aheadX, aheadY, testHeading, tileSize);
     const score = onRoad * 3 + clearance;
     if (score > bestScore) {
       bestScore = score;
@@ -52,7 +51,7 @@ function getRoadSteer({ dt, tiledState, heading, pos, speed, turnRateMax }) {
     }
   });
 
-  const centerBias = roadCenterBias(tiledState, pos.x, pos.y, heading, tileSize);
+  const centerBias = roadCenterBias(navLayer, pos.x, pos.y, heading, tileSize);
 
   if (bestScore <= 0) {
     const tileX = tiledState.tilemap.worldToTileX(pos.x);
@@ -61,7 +60,7 @@ function getRoadSteer({ dt, tiledState, heading, pos, speed, turnRateMax }) {
     let nearest = null;
     for (let y = tileY - radius; y <= tileY + radius; y += 1) {
       for (let x = tileX - radius; x <= tileX + radius; x += 1) {
-        const tile = tiledState.drivableLayer.getTileAt(x, y);
+        const tile = navLayer.getTileAt(x, y);
         if (!tile || tile.index === -1) continue;
         const wx = tile.getCenterX();
         const wy = tile.getCenterY();
@@ -83,7 +82,7 @@ function getRoadSteer({ dt, tiledState, heading, pos, speed, turnRateMax }) {
   return Phaser.Math.Clamp(bestSteer + centerBias * 0.6, -1, 1);
 }
 
-function roadClearance(tiledState, x, y, headingAngle, step) {
+function roadClearance(layer, x, y, headingAngle, step) {
   const perpX = -Math.sin(headingAngle);
   const perpY = Math.cos(headingAngle);
   const maxSteps = 6;
@@ -92,7 +91,7 @@ function roadClearance(tiledState, x, y, headingAngle, step) {
   for (let i = 1; i <= maxSteps; i += 1) {
     const lx = x + perpX * step * i;
     const ly = y + perpY * step * i;
-    if (isOnDrivableLayer(tiledState, lx, ly)) {
+    if (isOnLayer(layer, lx, ly)) {
       left += 1;
     } else {
       break;
@@ -101,7 +100,7 @@ function roadClearance(tiledState, x, y, headingAngle, step) {
   for (let i = 1; i <= maxSteps; i += 1) {
     const rx = x - perpX * step * i;
     const ry = y - perpY * step * i;
-    if (isOnDrivableLayer(tiledState, rx, ry)) {
+    if (isOnLayer(layer, rx, ry)) {
       right += 1;
     } else {
       break;
@@ -110,7 +109,7 @@ function roadClearance(tiledState, x, y, headingAngle, step) {
   return Math.min(left, right);
 }
 
-function roadCenterBias(tiledState, x, y, headingAngle, step) {
+function roadCenterBias(layer, x, y, headingAngle, step) {
   const perpX = -Math.sin(headingAngle);
   const perpY = Math.cos(headingAngle);
   const maxSteps = 8;
@@ -119,7 +118,7 @@ function roadCenterBias(tiledState, x, y, headingAngle, step) {
   for (let i = 1; i <= maxSteps; i += 1) {
     const lx = x + perpX * step * i;
     const ly = y + perpY * step * i;
-    if (isOnDrivableLayer(tiledState, lx, ly)) {
+    if (isOnLayer(layer, lx, ly)) {
       left += 1;
     } else {
       break;
@@ -128,7 +127,7 @@ function roadCenterBias(tiledState, x, y, headingAngle, step) {
   for (let i = 1; i <= maxSteps; i += 1) {
     const rx = x - perpX * step * i;
     const ry = y - perpY * step * i;
-    if (isOnDrivableLayer(tiledState, rx, ry)) {
+    if (isOnLayer(layer, rx, ry)) {
       right += 1;
     } else {
       break;
@@ -137,4 +136,9 @@ function roadCenterBias(tiledState, x, y, headingAngle, step) {
   const total = left + right;
   if (total === 0) return 0;
   return (right - left) / total;
+}
+
+function isOnLayer(layer, x, y) {
+  const tile = layer.getTileAtWorldXY(x, y, true);
+  return Boolean(tile && tile.index !== -1);
 }

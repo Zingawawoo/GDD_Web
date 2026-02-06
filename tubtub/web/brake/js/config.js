@@ -26,9 +26,6 @@ export const PHYSICS = {
   DRIFT_ALIGN_RATE: 2.2,
   NORMAL_ALIGN_RATE: 7.5,
   DRIFT_CHARGE_RATE: 0.8,
-  DRIFT_BOOST_SMALL: 120,
-  DRIFT_BOOST_MED: 220,
-  DRIFT_BOOST_LARGE: 320,
   DRIFT_CHARGE_MED: 0.9,
   DRIFT_CHARGE_LARGE: 1.8,
 };
@@ -102,5 +99,37 @@ export const TILEMAPS = {
     ],
     drivableLayerName: "Road",
     wallLayerName: "wall",
+  },
+  arka: {
+    id: "arka",
+    name: "Arka",
+    key: "map-arka",
+    json: "Assets/Map/arka/Arka.tmj",
+    tilesets: [
+      {
+        name: "tiles",
+        imageKey: "tileset-arka-tiles",
+        imagePath: "Assets/Map/arka/tiles.png",
+        forLayers: true,
+      },
+      {
+        name: "assets",
+        imageKey: "tileset-arka-assets",
+        imagePath: "Assets/Map/arka/assets.png",
+        forLayers: true,
+      },
+      {
+        name: "racing",
+        imageKey: "tileset-arka-racing",
+        imagePath: "Assets/Map/arka/racing.png",
+        forLayers: true,
+      },
+    ],
+    drivableLayerName: "Road",
+    wallLayerName: "Wall",
+    voidLayerName: "Void",
+    checkpointLayerName: "Checkpoint",
+    startLayerName: "Start",
+    pathLayerName: "Path",
   },
 };

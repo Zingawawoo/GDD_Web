@@ -2,6 +2,7 @@ import { CAR_CATALOG, COLOR_SWATCHES } from "./js/cars.js";
 import { BEST_TIME_KEY, FRAME_COUNT, HOP, PHYSICS, TILEMAPS, WORLD } from "./js/config.js";
 import { getBotControls, getPlayerControls } from "./js/controls.js";
 import { MAPS, getMap } from "./js/maps.js";
+import { buildCheckpointState, isOnCluster } from "./js/checkpoints.js";
 import { moveTowards } from "./js/utils.js";
 import { createTiledState, hideTiledMap, isOnDrivableLayer, isOnWallLayer, isTiledAvailable, setupTiledMap } from "./js/tiled.js";
 import { buildCarGrid, highlightCards, initUI, renderCardPreviews, renderSwatches, setDriftState, setHudVisible, updateHud, updateMapCards, updatePreview, wireMenu, wirePause } from "./js/ui.js";
@@ -49,9 +50,6 @@ const {
   TRACTION_LOSS,
   TRACTION_SPEED_MIN,
   DRIFT_ALIGN_RATE,
-  DRIFT_BOOST_LARGE,
-  DRIFT_BOOST_MED,
-  DRIFT_BOOST_SMALL,
   DRIFT_CHARGE_LARGE,
   DRIFT_CHARGE_MED,
   DRIFT_CHARGE_RATE,
@@ -88,6 +86,11 @@ let driftCharge = 0;
 let wasDrifting = false;
 let tiledAvailability = {};
 let botMode = false;
+let checkpointState = { sequence: [], index: 0, lastPos: null };
+let lastShake = 0;
+let skidTimer = 0;
+let skidLayer;
+let skidMarks = [];
 
 const tiledState = createTiledState();
 let ui;
@@ -120,6 +123,8 @@ function create() {
 
   car = this.add.image(pos.x, pos.y, frameKey(currentCar.id, currentColor, 0));
   car.setDepth(1);
+  skidLayer = this.add.graphics();
+  skidLayer.setDepth(0.5);
 
   cursors = this.input.keyboard.addKeys({
     up: Phaser.Input.Keyboard.KeyCodes.W,
@@ -214,14 +219,6 @@ function update(_, dtMs) {
     }
   }
   if (driftReleased || Math.abs(speed) < DRIFT_MIN_SPEED) {
-    if (drifting) {
-      const boost = driftCharge >= DRIFT_CHARGE_LARGE
-        ? DRIFT_BOOST_LARGE
-        : driftCharge >= DRIFT_CHARGE_MED
-          ? DRIFT_BOOST_MED
-          : DRIFT_BOOST_SMALL;
-      speed = Math.max(speed, 0) + boost;
-    }
     drifting = false;
     driftCharge = 0;
   }
@@ -266,6 +263,7 @@ function update(_, dtMs) {
     speed = Math.max(speed, -MAX_SPEED_REV);
   }
 
+
   const hop = hopState();
 
   if (Math.abs(speed) > 1) {
@@ -298,12 +296,40 @@ function update(_, dtMs) {
     speed = moveTowards(speed, 0, OFFTRACK_FRICTION * dt);
     pos.x = Phaser.Math.Clamp(pos.x - vx * dt * 0.6, 0, worldWidth);
     pos.y = Phaser.Math.Clamp(pos.y - vy * dt * 0.6, 0, worldHeight);
+    const now = performance.now();
+    if (now - lastShake > 200) {
+      car.scene.cameras.main.shake(90, 0.003);
+      lastShake = now;
+    }
   } else {
     pos.x = nextX;
     pos.y = nextY;
   }
+
+  if (useTiledMap && tiledState.voidLayer) {
+    const voidTile = tiledState.voidLayer.getTileAtWorldXY(pos.x, pos.y, true);
+    if (voidTile && voidTile.index !== -1 && checkpointState.lastPos) {
+      pos.x = checkpointState.lastPos.x;
+      pos.y = checkpointState.lastPos.y;
+      speed = 0;
+      heading = 0;
+      moveAngle = heading;
+    }
+  }
+
+  if (useTiledMap && checkpointState.sequence.length) {
+    const expected = checkpointState.sequence[checkpointState.index];
+    if (expected && isOnCluster(tiledState.tilemap, expected, pos.x, pos.y)) {
+      checkpointState.lastPos = expected.centerWorld;
+      if (checkpointState.index < checkpointState.sequence.length - 1) {
+        checkpointState.index += 1;
+      }
+    }
+  }
   car.setPosition(pos.x, pos.y - hop.offset);
   car.setScale(1 + (HOP.SCALE - 1) * hop.strength);
+  updateSkid(dt, vx, vy);
+  renderSkids();
 
   updateCarFrame(car, car.scene, heading, currentCar, currentColor, FRAME_COUNT);
 
@@ -380,6 +406,13 @@ function resetRace(skipBest) {
   hopUntil = 0;
   drifting = false;
   driftCharge = 0;
+  skidTimer = 0;
+  if (skidLayer) skidLayer.clear();
+  skidMarks = [];
+  if (useTiledMap && checkpointState.sequence.length) {
+    checkpointState.index = 0;
+    checkpointState.lastPos = checkpointState.sequence[0].centerWorld;
+  }
   raceStart = performance.now();
   raceTime = 0;
   if (car) {
@@ -424,6 +457,41 @@ function recordBestTime() {
   }
 }
 
+function updateSkid(dt, vx, vy) {
+  if (!skidLayer) return;
+  skidTimer += dt;
+  if (skidTimer < 0.06) return;
+  skidTimer = 0;
+  if (!drifting || Math.abs(speed) < 60) return;
+  const nx = vx === 0 && vy === 0 ? 0 : vx / Math.max(Math.abs(speed), 1);
+  const ny = vy === 0 && nx === 0 ? 0 : vy / Math.max(Math.abs(speed), 1);
+  const px = pos.x - nx * 16;
+  const py = pos.y - ny * 16;
+  const sx = pos.x - nx * 26;
+  const sy = pos.y - ny * 26;
+  skidMarks.push({
+    x1: sx,
+    y1: sy,
+    x2: px,
+    y2: py,
+    born: performance.now(),
+  });
+}
+
+function renderSkids() {
+  if (!skidLayer) return;
+  const now = performance.now();
+  skidMarks = skidMarks.filter((mark) => now - mark.born <= 3000);
+  skidLayer.clear();
+  skidLayer.lineStyle(2.5, 0x111820, 0.65);
+  skidMarks.forEach((mark) => {
+    skidLayer.beginPath();
+    skidLayer.moveTo(mark.x1, mark.y1);
+    skidLayer.lineTo(mark.x2, mark.y2);
+    skidLayer.strokePath();
+  });
+}
+
 function hopState() {
   if (!hopUntil) return { offset: 0, strength: 0 };
   const now = performance.now();
@@ -447,6 +515,14 @@ function drawMap(scene, map) {
       scene.physics.world.setBounds(0, 0, worldWidth, worldHeight);
       scene.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
       if (mapLayer) mapLayer.destroy();
+      checkpointState = buildCheckpointState(tiledState);
+      if (checkpointState.lastPos) {
+        tiledState.drivableSpawn = {
+          x: checkpointState.lastPos.x,
+          y: checkpointState.lastPos.y,
+          heading: 0,
+        };
+      }
       return;
     }
     useTiledMap = false;
@@ -454,6 +530,8 @@ function drawMap(scene, map) {
 
   hideTiledMap(tiledState);
   if (mapLayer) mapLayer.destroy();
+  if (skidLayer) skidLayer.clear();
+  skidMarks = [];
   const g = scene.add.graphics();
   mapLayer = g;
   mapLayer.setDepth(0);

@@ -186,6 +186,14 @@ export const MAPS = {
     onTrack: () => true,
     tiledConfigId: "willow",
   },
+  arka: {
+    id: "arka",
+    name: TILEMAPS.arka.name,
+    spawn: { x: WORLD.width / 2, y: WORLD.height / 2, heading: 0 },
+    draw: drawTiledMap,
+    onTrack: () => true,
+    tiledConfigId: "arka",
+  },
 };
 
 export function getMap(id, availability = {}) {

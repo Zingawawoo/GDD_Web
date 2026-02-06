@@ -4,6 +4,10 @@ export function createTiledState() {
     tilemapLayers: [],
     drivableLayer: null,
     wallLayer: null,
+    voidLayer: null,
+    checkpointLayer: null,
+    startLayer: null,
+    pathLayer: null,
     drivableSpawn: null,
     objectSprites: [],
     mapKey: null,
@@ -46,6 +50,26 @@ export function setupTiledMap(scene, tiled, config) {
       }
       if (layerData.name === config.wallLayerName) {
         tiled.wallLayer = tiled.tilemap.createLayer(layerData.name, tilesets, 0, 0);
+        return;
+      }
+      if (layerData.name === config.voidLayerName) {
+        tiled.voidLayer = tiled.tilemap.createLayer(layerData.name, tilesets, 0, 0);
+        if (tiled.voidLayer) tiled.tilemapLayers.push(tiled.voidLayer);
+        return;
+      }
+      if (layerData.name === config.checkpointLayerName) {
+        tiled.checkpointLayer = tiled.tilemap.createLayer(layerData.name, tilesets, 0, 0);
+        if (tiled.checkpointLayer) tiled.tilemapLayers.push(tiled.checkpointLayer);
+        return;
+      }
+      if (layerData.name === config.startLayerName) {
+        tiled.startLayer = tiled.tilemap.createLayer(layerData.name, tilesets, 0, 0);
+        if (tiled.startLayer) tiled.tilemapLayers.push(tiled.startLayer);
+        return;
+      }
+      if (layerData.name === config.pathLayerName) {
+        tiled.pathLayer = tiled.tilemap.createLayer(layerData.name, tilesets, 0, 0);
+        if (tiled.pathLayer) tiled.tilemapLayers.push(tiled.pathLayer);
         return;
       }
       const layer = tiled.tilemap.createLayer(layerData.name, tilesets, 0, 0);
@@ -129,6 +153,10 @@ function resetTiledMap(tiled) {
     tiled.wallLayer.destroy();
     tiled.wallLayer = null;
   }
+  tiled.voidLayer = null;
+  tiled.checkpointLayer = null;
+  tiled.startLayer = null;
+  tiled.pathLayer = null;
   tiled.objectSprites.forEach((sprite) => sprite.destroy());
   tiled.objectSprites = [];
   if (tiled.tilemap && typeof tiled.tilemap.destroy === "function") {
