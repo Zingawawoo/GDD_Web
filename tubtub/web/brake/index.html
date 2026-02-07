@@ -83,6 +83,19 @@
       .hud .hud-toggle input {
         accent-color: #f5d36a;
       }
+      .minimap {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        width: 200px;
+        height: 200px;
+        background: rgba(10, 14, 20, 0.9);
+        border: 1px solid rgba(245, 211, 106, 0.4);
+        border-radius: 10px;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+        z-index: 20;
+        image-rendering: pixelated;
+      }
       .settings-grid {
         display: grid;
         gap: 12px;
@@ -381,6 +394,21 @@
             <input type="range" id="set-traction-loss" min="0.1" max="0.6" step="0.02" />
             <div class="value" id="set-traction-loss-value">0.35</div>
           </div>
+          <div class="setting-row">
+            <label for="set-pixel-art">Pixel Art</label>
+            <input type="checkbox" id="set-pixel-art" />
+            <div class="value">Toggle</div>
+          </div>
+          <div class="setting-row">
+            <label for="set-antialias">Antialias</label>
+            <input type="checkbox" id="set-antialias" />
+            <div class="value">Toggle</div>
+          </div>
+          <div class="setting-row">
+            <label for="set-round-pixels">Round Pixels</label>
+            <input type="checkbox" id="set-round-pixels" />
+            <div class="value">Toggle</div>
+          </div>
         </div>
         <div class="settings-actions">
           <button class="start-btn" id="settings-apply">Apply</button>
@@ -429,7 +457,10 @@
         <div class="grid" id="map-grid">
           <div class="map-card active" data-map="stardew">Stardew</div>
           <div class="map-card" data-map="willow">Willow</div>
+          <div class="map-card" data-map="auto">Auto</div>
           <div class="map-card" data-map="arka">Arka</div>
+          <div class="map-card" data-map="temp">Temp</div>
+          <div class="map-card" data-map="track1">Track 1</div>
         </div>
         <label class="subtitle">
           <input type="checkbox" id="bot-toggle" />
@@ -457,6 +488,7 @@
         Ghost
       </label>
     </div>
+    <canvas class="minimap" id="minimap" width="160" height="160" aria-label="Minimap"></canvas>
     <div class="pause-banner" id="pause-banner">
       <div class="pause-panel">
         <div>Paused</div>

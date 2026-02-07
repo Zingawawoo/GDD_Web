@@ -5,7 +5,7 @@ import { MAPS, getMap } from "./js/maps.js";
 import { buildCheckpointState, isOnCluster } from "./js/checkpoints.js";
 import { moveTowards } from "./js/utils.js";
 import { createTiledState, hideTiledMap, isOnDrivableLayer, isOnWallLayer, isTiledAvailable, setupTiledMap } from "./js/tiled.js";
-import { buildCarGrid, highlightCards, initUI, readSettingsValues, renderCardPreviews, renderSwatches, setDriftState, setHudVisible, setSettingsValues, updateHud, updateMapCards, updatePreview, wireMenu, wirePause, wireSettings } from "./js/ui.js";
+import { buildCarGrid, highlightCards, initUI, readRenderSettingsValues, readSettingsValues, renderCardPreviews, renderSwatches, setDriftState, setHudVisible, setRenderSettingsValues, setSettingsValues, updateHud, updateMapCards, updatePreview, wireMenu, wirePause, wireSettings } from "./js/ui.js";
 import { frameKey, loadCarFrames, swapCar, updateCarFrame } from "./js/vehicle.js";
 
 const gameConfig = {
@@ -14,6 +14,11 @@ const gameConfig = {
   width: 1280,
   height: 720,
   backgroundColor: "#0b0f16",
+  render: {
+    pixelArt: true,
+    antialias: false,
+    roundPixels: true,
+  },
   physics: {
     default: "arcade",
     arcade: { gravity: { y: 0 }, debug: false },
@@ -31,8 +36,11 @@ const gameConfig = {
 
 new Phaser.Game(gameConfig);
 
+const CAMERA_BASE_ZOOM = 1.25;
 const physicsDefaults = { ...PHYSICS };
 let physics = { ...PHYSICS };
+const renderDefaults = { pixelArt: true, antialias: false, roundPixels: true };
+let renderSettings = { ...renderDefaults };
 
 const GHOST_SAMPLE_MS = 60;
 const GHOST_MAX_FRAMES = 6000;
@@ -83,6 +91,10 @@ let ghostCursor = 0;
 let goUntil = 0;
 let countdownActive = false;
 let ghostEnabled = true;
+let minimapCanvas;
+let minimapCtx;
+let minimapBase;
+let minimapDirty = false;
 
 const tiledState = createTiledState();
 let ui;
@@ -108,9 +120,20 @@ function create() {
     return acc;
   }, {});
   ui = initUI();
+  minimapCanvas = ui.minimap;
+  if (minimapCanvas) {
+    minimapCanvas.width = 200;
+    minimapCanvas.height = 200;
+    minimapCtx = minimapCanvas.getContext("2d");
+    minimapBase = document.createElement("canvas");
+    minimapBase.width = minimapCanvas.width;
+    minimapBase.height = minimapCanvas.height;
+    minimapDirty = true;
+  }
   const savedSettings = loadSettings();
   applySettings(savedSettings);
   setSettingsValues(ui, physics);
+  setRenderSettingsValues(ui, renderSettings);
   updateMapCards(ui, tiledAvailability, () => selectFallbackMap());
 
   currentMap = getMap(selectedMap, tiledAvailability);
@@ -120,6 +143,7 @@ function create() {
   car.setDepth(1);
   skidLayer = this.add.graphics();
   skidLayer.setDepth(0.5);
+  applyRenderSettings(renderSettings);
 
   cursors = this.input.keyboard.addKeys({
     up: Phaser.Input.Keyboard.KeyCodes.W,
@@ -182,7 +206,7 @@ function create() {
   });
 
   this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
-  this.cameras.main.setZoom(1.25);
+  this.cameras.main.setZoom(CAMERA_BASE_ZOOM);
   this.cameras.main.startFollow(car, true, 0.1, 0.1);
 
   pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
@@ -256,15 +280,20 @@ function update(_, dtMs) {
   const driftReleased = controls.driftReleased;
   const driftHeld = controls.driftHeld;
   const steer = controls.steer;
+  const onTrack = useTiledMap
+    ? isOnDrivableLayer(tiledState, pos.x, pos.y)
+    : (currentMap?.onTrack ? currentMap.onTrack(pos.x, pos.y) : true);
 
   if (handbrake) {
     speed = moveTowards(speed, 0, physics.HANDBRAKE_FRICTION * dt);
-  } else if (throttle && !drifting) {
-    speed += physics.ACCEL_FWD * dt;
-  } else if (reverse && !drifting) {
-    speed -= physics.ACCEL_REV * dt;
-  } else {
-    speed = moveTowards(speed, 0, physics.GROUND_FRICTION * dt);
+  } else if (!(drifting && !handbrake && onTrack)) {
+    if (throttle) {
+      speed += physics.ACCEL_FWD * dt;
+    } else if (reverse) {
+      speed -= physics.ACCEL_REV * dt;
+    } else {
+      speed = moveTowards(speed, 0, physics.GROUND_FRICTION * dt);
+    }
   }
 
   if (driftPressed) {
@@ -288,17 +317,15 @@ function update(_, dtMs) {
     wasDrifting = drifting;
   }
 
-  const onTrack = useTiledMap
-    ? isOnDrivableLayer(tiledState, pos.x, pos.y)
-    : (currentMap?.onTrack ? currentMap.onTrack(pos.x, pos.y) : true);
+  const driftLock = drifting && !handbrake && onTrack;
 
   let maxSpeed = physics.MAX_SPEED_FWD;
-  if (Math.abs(speed) > physics.HIGH_SPEED_DRAG_START) {
+  if (!driftLock && Math.abs(speed) > physics.HIGH_SPEED_DRAG_START) {
     const overspeed = Math.abs(speed) - physics.HIGH_SPEED_DRAG_START;
     const drag = physics.HIGH_SPEED_DRAG * (overspeed / physics.HIGH_SPEED_DRAG_START);
     speed = moveTowards(speed, 0, drag * dt);
   }
-  if (!onTrack) {
+  if (!driftLock && !onTrack) {
     const offCapFwd = Math.min(physics.MAX_SPEED_FWD * physics.OFFTRACK_SPEED_RATIO, physics.OFFTRACK_SPEED_CAP);
     const offCapRev = Math.min(physics.MAX_SPEED_REV * physics.OFFTRACK_SPEED_RATIO, physics.OFFTRACK_SPEED_CAP * 0.6);
     if (speed > offCapFwd) {
@@ -314,10 +341,12 @@ function update(_, dtMs) {
     }
   }
 
-  if (onTrack) {
-    speed = Phaser.Math.Clamp(speed, -physics.MAX_SPEED_REV, maxSpeed);
-  } else {
-    speed = Math.max(speed, -physics.MAX_SPEED_REV);
+  if (!driftLock) {
+    if (onTrack) {
+      speed = Phaser.Math.Clamp(speed, -physics.MAX_SPEED_REV, maxSpeed);
+    } else {
+      speed = Math.max(speed, -physics.MAX_SPEED_REV);
+    }
   }
 
 
@@ -331,7 +360,9 @@ function update(_, dtMs) {
       const slip = Phaser.Math.Clamp((Math.abs(speed) - physics.TRACTION_SPEED_MIN) / (physics.MAX_SPEED_FWD - physics.TRACTION_SPEED_MIN), 0, 1);
       const tractionLoss = slip * Math.abs(steer);
       turnRate *= 1 - physics.TRACTION_LOSS * tractionLoss;
-      speed = moveTowards(speed, 0, physics.TRACTION_DRAG * tractionLoss * dt);
+      if (!driftLock) {
+        speed = moveTowards(speed, 0, physics.TRACTION_DRAG * tractionLoss * dt);
+      }
     }
     if (drifting) {
       turnRate *= physics.DRIFT_TURN_BONUS;
@@ -403,6 +434,12 @@ function update(_, dtMs) {
     state: stateText,
     stateTone,
   });
+  if (renderSettings.pixelArt && car?.scene?.cameras?.main) {
+    const cam = car.scene.cameras.main;
+    cam.scrollX = Math.round(cam.scrollX);
+    cam.scrollY = Math.round(cam.scrollY);
+  }
+  updateMinimap();
 }
 
 function selectMap(mapId, card) {
@@ -546,11 +583,17 @@ function recordBestTime() {
 
 function applySettings(values) {
   if (!values || typeof values !== "object") return;
-  Object.entries(values).forEach(([key, value]) => {
+
+  const physicsValues = values.physics && typeof values.physics === "object" ? values.physics : values;
+  Object.entries(physicsValues).forEach(([key, value]) => {
     if (typeof value !== "number" || Number.isNaN(value)) return;
     if (!(key in physics)) return;
     physics[key] = value;
   });
+
+  if (values.render && typeof values.render === "object") {
+    applyRenderSettings(values.render);
+  }
 }
 
 function loadSettings() {
@@ -573,16 +616,51 @@ function saveSettings(values) {
   }
 }
 
+function applyRenderSettings(values) {
+  if (!values || typeof values !== "object") return;
+  renderSettings = {
+    pixelArt: Boolean(values.pixelArt),
+    antialias: Boolean(values.antialias),
+    roundPixels: Boolean(values.roundPixels),
+  };
+
+  const scene = car?.scene;
+  if (!scene) return;
+
+  scene.cameras.main.roundPixels = renderSettings.roundPixels;
+  scene.cameras.main.setZoom(renderSettings.pixelArt ? Math.max(1, Math.round(CAMERA_BASE_ZOOM)) : CAMERA_BASE_ZOOM);
+  if (scene.game?.renderer?.config) {
+    scene.game.renderer.config.roundPixels = renderSettings.roundPixels;
+    scene.game.renderer.config.antialias = renderSettings.antialias;
+  }
+  if (scene.game?.renderer?.context) {
+    scene.game.renderer.context.imageSmoothingEnabled = renderSettings.antialias;
+  }
+
+  const filterMode = renderSettings.pixelArt ? Phaser.Textures.FilterMode.NEAREST : Phaser.Textures.FilterMode.LINEAR;
+  scene.textures.getTextureKeys().forEach((key) => {
+    const texture = scene.textures.get(key);
+    if (texture && typeof texture.setFilter === "function") {
+      texture.setFilter(filterMode);
+    }
+  });
+}
+
 function applySettingsFromUI() {
   const values = readSettingsValues(ui);
-  applySettings(values);
-  saveSettings(values);
+  const render = readRenderSettingsValues(ui);
+  const payload = { physics: values, render };
+  applySettings(payload);
+  saveSettings(payload);
 }
 
 function resetSettingsFromUI() {
   physics = { ...physicsDefaults };
+  renderSettings = { ...renderDefaults };
   setSettingsValues(ui, physics);
-  saveSettings(physics);
+  setRenderSettingsValues(ui, renderSettings);
+  applyRenderSettings(renderSettings);
+  saveSettings({ physics, render: renderSettings });
 }
 
 function loadGhosts() {
@@ -805,6 +883,7 @@ function drawMap(scene, map) {
           heading: 0,
         };
       }
+      minimapDirty = true;
       return;
     }
     useTiledMap = false;
@@ -823,6 +902,76 @@ function drawMap(scene, map) {
   worldHeight = WORLD.height;
   scene.physics.world.setBounds(0, 0, worldWidth, worldHeight);
   scene.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
+  minimapDirty = true;
+}
+
+function buildMinimapBase(map) {
+  if (!minimapBase) return;
+  const w = minimapBase.width;
+  const h = minimapBase.height;
+  const ctx = minimapBase.getContext("2d");
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#0b0f16";
+  ctx.fillRect(0, 0, w, h);
+
+  const roadColor = "#243042";
+
+  if (useTiledMap && tiledState.drivableLayer) {
+    const drivable = tiledState.drivableLayer;
+    for (let y = 0; y < h; y += 1) {
+      const worldY = ((y + 0.5) / h) * worldHeight;
+      for (let x = 0; x < w; x += 1) {
+        const worldX = ((x + 0.5) / w) * worldWidth;
+        const roadTile = drivable.getTileAtWorldXY(worldX, worldY, true);
+        if (roadTile && roadTile.index !== -1) {
+          ctx.fillStyle = roadColor;
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+    }
+  } else if (map?.onTrack) {
+    for (let y = 0; y < h; y += 1) {
+      const worldY = ((y + 0.5) / h) * worldHeight;
+      for (let x = 0; x < w; x += 1) {
+        const worldX = ((x + 0.5) / w) * worldWidth;
+        if (map.onTrack(worldX, worldY)) {
+          ctx.fillStyle = roadColor;
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+    }
+  }
+
+  ctx.strokeStyle = "rgba(245, 211, 106, 0.6)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+}
+
+function updateMinimap() {
+  if (!minimapCanvas || !minimapCtx) return;
+  if (minimapDirty) {
+    buildMinimapBase(currentMap);
+    minimapDirty = false;
+  }
+  if (!minimapBase) return;
+  minimapCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+  minimapCtx.drawImage(minimapBase, 0, 0);
+
+  const x = (pos.x / Math.max(worldWidth, 1)) * minimapCanvas.width;
+  const y = (pos.y / Math.max(worldHeight, 1)) * minimapCanvas.height;
+
+  minimapCtx.fillStyle = "#f5d36a";
+  minimapCtx.beginPath();
+  minimapCtx.arc(x, y, 3.2, 0, Math.PI * 2);
+  minimapCtx.fill();
+
+  const headingLen = 8;
+  minimapCtx.strokeStyle = "#f5d36a";
+  minimapCtx.lineWidth = 1;
+  minimapCtx.beginPath();
+  minimapCtx.moveTo(x, y);
+  minimapCtx.lineTo(x + Math.cos(heading) * headingLen, y + Math.sin(heading) * headingLen);
+  minimapCtx.stroke();
 }
 
 // Vehicle helpers moved to js/vehicle.js

@@ -39,6 +39,9 @@ export function initUI() {
     settingsDriftAlignValue: document.getElementById("set-drift-align-value"),
     settingsTractionLoss: document.getElementById("set-traction-loss"),
     settingsTractionLossValue: document.getElementById("set-traction-loss-value"),
+    settingsPixelArt: document.getElementById("set-pixel-art"),
+    settingsAntialias: document.getElementById("set-antialias"),
+    settingsRoundPixels: document.getElementById("set-round-pixels"),
     mapBack: document.getElementById("map-back"),
     mapContinue: document.getElementById("map-continue"),
     mapGrid: document.getElementById("map-grid"),
@@ -51,6 +54,7 @@ export function initUI() {
     hudBest: document.getElementById("hud-best"),
     hudSpeed: document.getElementById("hud-speed"),
     hudDrift: document.getElementById("hud-drift"),
+    minimap: document.getElementById("minimap"),
     pauseBanner: document.getElementById("pause-banner"),
     pauseResume: document.getElementById("pause-resume"),
     pauseQuit: document.getElementById("pause-quit"),
@@ -191,6 +195,21 @@ export function readSettingsValues(ui) {
   return result;
 }
 
+export function setRenderSettingsValues(ui, values) {
+  if (!ui) return;
+  if (ui.settingsPixelArt) ui.settingsPixelArt.checked = values?.pixelArt ?? true;
+  if (ui.settingsAntialias) ui.settingsAntialias.checked = values?.antialias ?? false;
+  if (ui.settingsRoundPixels) ui.settingsRoundPixels.checked = values?.roundPixels ?? true;
+}
+
+export function readRenderSettingsValues(ui) {
+  return {
+    pixelArt: Boolean(ui?.settingsPixelArt?.checked),
+    antialias: Boolean(ui?.settingsAntialias?.checked),
+    roundPixels: Boolean(ui?.settingsRoundPixels?.checked),
+  };
+}
+
 export function wireSettings(ui, handlers) {
   if (ui.settingsBack) ui.settingsBack.addEventListener("click", () => handlers.showScreen("menu"));
   if (ui.settingsApply) ui.settingsApply.addEventListener("click", () => handlers.onApply?.());
@@ -208,8 +227,8 @@ export function wirePause(ui, handlers) {
 }
 
 export function setHudVisible(ui, visible) {
-  if (!ui.hud) return;
-  ui.hud.style.display = visible ? "grid" : "none";
+  if (ui.hud) ui.hud.style.display = visible ? "grid" : "none";
+  if (ui.minimap) ui.minimap.style.display = visible ? "block" : "none";
 }
 
 export function updateHud(ui, data) {

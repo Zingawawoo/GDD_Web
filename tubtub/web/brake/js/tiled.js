@@ -50,26 +50,27 @@ export function setupTiledMap(scene, tiled, config) {
       }
       if (layerData.name === config.wallLayerName) {
         tiled.wallLayer = tiled.tilemap.createLayer(layerData.name, tilesets, 0, 0);
+        if (tiled.wallLayer) tiled.wallLayer.setVisible(false);
         return;
       }
       if (layerData.name === config.voidLayerName) {
         tiled.voidLayer = tiled.tilemap.createLayer(layerData.name, tilesets, 0, 0);
-        if (tiled.voidLayer) tiled.tilemapLayers.push(tiled.voidLayer);
+        if (tiled.voidLayer) tiled.voidLayer.setVisible(false);
         return;
       }
       if (layerData.name === config.checkpointLayerName) {
         tiled.checkpointLayer = tiled.tilemap.createLayer(layerData.name, tilesets, 0, 0);
-        if (tiled.checkpointLayer) tiled.tilemapLayers.push(tiled.checkpointLayer);
+        if (tiled.checkpointLayer) tiled.checkpointLayer.setVisible(false);
         return;
       }
       if (layerData.name === config.startLayerName) {
         tiled.startLayer = tiled.tilemap.createLayer(layerData.name, tilesets, 0, 0);
-        if (tiled.startLayer) tiled.tilemapLayers.push(tiled.startLayer);
+        if (tiled.startLayer) tiled.startLayer.setVisible(false);
         return;
       }
       if (layerData.name === config.pathLayerName) {
         tiled.pathLayer = tiled.tilemap.createLayer(layerData.name, tilesets, 0, 0);
-        if (tiled.pathLayer) tiled.tilemapLayers.push(tiled.pathLayer);
+        if (tiled.pathLayer) tiled.pathLayer.setVisible(false);
         return;
       }
       const layer = tiled.tilemap.createLayer(layerData.name, tilesets, 0, 0);
@@ -80,7 +81,7 @@ export function setupTiledMap(scene, tiled, config) {
   }
   tiled.tilemapLayers.forEach((layer) => layer.setVisible(true));
   if (tiled.drivableLayer) tiled.drivableLayer.setVisible(true);
-  if (tiled.wallLayer) tiled.wallLayer.setVisible(true);
+  if (tiled.wallLayer) tiled.wallLayer.setVisible(false);
   tiled.objectSprites.forEach((sprite) => sprite.setVisible(true));
   return {
     ok: true,

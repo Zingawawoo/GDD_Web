@@ -186,6 +186,14 @@ export const MAPS = {
     onTrack: () => true,
     tiledConfigId: "willow",
   },
+  auto: {
+    id: "auto",
+    name: TILEMAPS.auto.name,
+    spawn: { x: WORLD.width / 2, y: WORLD.height / 2, heading: 0 },
+    draw: drawTiledMap,
+    onTrack: () => true,
+    tiledConfigId: "auto",
+  },
   arka: {
     id: "arka",
     name: TILEMAPS.arka.name,
@@ -193,6 +201,22 @@ export const MAPS = {
     draw: drawTiledMap,
     onTrack: () => true,
     tiledConfigId: "arka",
+  },
+  temp: {
+    id: "temp",
+    name: TILEMAPS.temp.name,
+    spawn: { x: WORLD.width / 2, y: WORLD.height / 2, heading: 0 },
+    draw: drawTiledMap,
+    onTrack: () => true,
+    tiledConfigId: "temp",
+  },
+  track1: {
+    id: "track1",
+    name: TILEMAPS.track1.name,
+    spawn: { x: WORLD.width / 2, y: WORLD.height / 2, heading: 0 },
+    draw: drawTiledMap,
+    onTrack: () => true,
+    tiledConfigId: "track1",
   },
 };
 
